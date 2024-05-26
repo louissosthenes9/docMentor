@@ -18,6 +18,14 @@ export const appRouter = router({
             }
            })
           
+           if(!dbUser){
+            await db.user.create({
+                data:{
+                    id:user.id,
+                    email:user.email
+                }
+            })
+           }
           return {success:true}
         }
     )
