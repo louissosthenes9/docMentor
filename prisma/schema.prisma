@@ -1,4 +1,4 @@
-// This is your Prisma schema file,
+ // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
@@ -11,4 +11,14 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id String @id @unique
+  email String @unique
+  
+  stripeCustomerId String? @unique @map(name:"Stripe_customer_id")
+  StripeSubscriptionId String? @unique @map(name:"Stripe_subcription_id")
+  StripePriceId String? @map(name:"Stripe_price_id")
+  StripeCurrentPeriodEndd DateTime?  @map(name:"Stripe_current_period_end")
 }
