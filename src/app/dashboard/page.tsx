@@ -1,17 +1,34 @@
 
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server'
-import { redirect } from 'next/navigation'
+import { redirect,useRouter } from 'next/navigation'
 import React from 'react'
+import { trpc } from '@/app/_trpc/client';
+import Dashboard from '@/components/Dashboard';
+const page = async () => {
 
-const page = () => {
+  const router = useRouter()
   const {getUser} = getKindeServerSession()
   const user = getUser()
   if(!user) redirect('/auth-callback?origin=dashboard');
+  
+  const {data, isLoading} = trpc.authCallback.useQuery(undefined,{
+    // succes represents data from the database
+    
+    onSuccess:({success})=>{
+      if(success){
+        //sync to the database
+
+        router.push(origin?`/${origin}`:'/dashboard')
+      
+      
+      
+      }
+    }
+  })
+  
   return (
-      <div>
-           
-      </div>
+     <Dashboard />
   )
 }
 
-export default page
+export default page;
