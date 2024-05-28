@@ -1,4 +1,4 @@
-
+"use client"
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server'
 import { redirect,useRouter } from 'next/navigation'
 import React from 'react'
