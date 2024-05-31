@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 import './globals.css'
 import type { Metadata } from 'next'
 import NavBar from '@/components/NavBar'
+import Provider from '@/components/Provider'
 
 export const metadata: Metadata = {
   title: 'Doc🧐 mentor',
@@ -18,8 +19,11 @@ export default function RootLayout({
       <body className={cn(
         'min-h-screen font-sans antialiased grainy'
       )}>
-        <NavBar/>
-        {children}    
+        <Provider>
+           <NavBar/>
+          {children}
+        </Provider>
+           
       </body>
     </html>
   ) 
