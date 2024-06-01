@@ -16,9 +16,30 @@ datasource db {
 model User {
   id String @id @unique
   email String @unique
-  
+
+  File File[]
+
   stripeCustomerId String? @unique @map(name:"Stripe_customer_id")
   StripeSubscriptionId String? @unique @map(name:"Stripe_subcription_id")
   StripePriceId String? @map(name:"Stripe_price_id")
   StripeCurrentPeriodEndd DateTime?  @map(name:"Stripe_current_period_end")
+}
+
+enum UploadStatus {
+   PENDING
+   PROCESSING
+   FAILED
+   SUCCESS
+}
+model File{
+  id String @id @default(cuid())
+  name String 
+  uploadStatus UploadStatus @default(PENDING)
+
+  url String
+  User User? @relation(fields: [id],references: [id])
+  key String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime  @updatedAt
 }
