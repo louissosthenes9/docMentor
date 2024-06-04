@@ -2,6 +2,7 @@ import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server';
 import {privateProcedure, publicProcedure, router} from './trpc'
 import { TRPCError } from '@trpc/server';
 import { db } from '@/db';
+import {z} from 'zod'
 import { KindeUser } from '@kinde-oss/kinde-auth-nextjs/types';
 export const appRouter = router({
     authCallback:publicProcedure.query(
@@ -38,7 +39,15 @@ export const appRouter = router({
               id:userId,
           }
       });
-    })
+    }),
+
+    deleteFile:privateProcedure.input(
+        z.object(
+            {
+                id:z.string()
+            }
+        )
+    )
   
 })
 

@@ -1,8 +1,10 @@
 "use client"
 import UploadButton from './UploadButton'
 import {trpc} from "@/app/_trpc/client";
-import {Ghost, Link2} from "lucide-react";
+import {Ghost, Link2, MessageSquare, Plus, Trash} from "lucide-react";
 import Link from 'next/link';
+import {format} from "date-fns"
+import { Button } from './ui/button';
 export default function Dashboard() {
 
    const {data: files,isLoading} = trpc.getUserFiles.useQuery();
@@ -22,7 +24,7 @@ export default function Dashboard() {
 
          {files && files?.length !==0 ?(
             <ul className="mt-8 grid grid-cols-1 md:grid-cols-2 lag:grid-cols-2 gap-6 divide-y divide-zinc-300">
-                {files.sort((a,b)=>
+                {files.sort((a:any,b:any)=>
                 new Date(b.createdAt).getTime()- 
                 new Date(a.createdAt).getTime()).map((file)=>(
                   <li key={file.id}
@@ -30,8 +32,41 @@ export default function Dashboard() {
                     <Link href={`/dashboard/${file.id}`} className='flex flex-col gap-2'>
                       <div className="pt-6 flex w-full items-center justify-between space-x-6 px 6">
                           <div aria-hidden="true" className='h-1- w-10 flex-shrink-0 bg-gradient-to-r from-cyan-500 to-blue-500'/>
+                     
+                          <div className='flex-1 truncate'>
+                               <div className="flex items-center space-x-3">
+                                   <h3 className='truncate text-lg font-medium text-zinc-900'>
+                                        {file.name}
+                                   </h3>
+                               </div>
+                          </div>
                       </div>
                     </Link>
+                    <div className="px-6 place-items-center grid grid-cols-3 py-2 gap-6 text-sm mt-4 text-zinc-500">
+                       <div className="flex items-center gap-2">
+                          <Plus className='w-4 h-4 '/>
+                          {format(new Date(file.createdAt),"MMM yyy")}
+                         
+                       </div>
+
+                       <div className='flex items-center gap-2'>
+                        <MessageSquare className='h-4 -4 '/>
+                        {/* 
+                        
+
+                        To display messages that the user has chatted with the api
+                        
+                        
+                        */}
+                    </div>
+
+                      <Button size={'sm'} className='w-full' variant={'destructive'}
+                      >
+                         <Trash className='h-4 w-4'/>
+                      </Button>
+                    </div> 
+
+                   
                   </li>
                 ))
                 
