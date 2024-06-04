@@ -33,11 +33,12 @@ enum UploadStatus {
 }
 model File{
   id String @id @default(cuid())
+  userId String?
   name String 
   uploadStatus UploadStatus @default(PENDING)
 
   url String
-  User User? @relation(fields: [id],references: [id])
+  User User? @relation(fields: [userId],references: [id])
   key String
 
   createdAt DateTime @default(now())
