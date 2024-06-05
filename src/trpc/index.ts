@@ -41,14 +41,21 @@ export const appRouter = router({
       });
     }),
 
-    deleteFile:privateProcedure.input(
-        z.object(
-            {
-                id:z.string()
-            }
-        )
-    )
-  
+    deleteFile: privateProcedure.input(
+        z.object({
+          id: z.string()
+        })
+      ).mutation(async ({ input }) => {
+        const { id } = input;
+    
+        await db.file.delete({
+          where: {
+            id,
+          },
+        });
+    
+        return { success: true };
+      }),
 })
 
 export type AppRouter = typeof appRouter;
