@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server';
 import { db } from '@/db';
 import {z} from 'zod'
 import { KindeUser } from '@kinde-oss/kinde-auth-nextjs/types';
+import { Input } from 'postcss';
 export const appRouter = router({
     authCallback:publicProcedure.query(
        async ()=>{
@@ -45,16 +46,29 @@ export const appRouter = router({
         z.object({
           id: z.string()
         })
-      ).mutation(async ({ input }) => {
-        const { id } = input;
+      ).mutation(async ({ ctx ,input}) => {
+        const { userId } = ctx;
     
+      const file = await db.file.findFirst(
+      {
+        where:{
+          id:input.id,
+          userId
+        }
+      }  
+      )
+
+      if(!file) throw new TRPCError({code:'NOT_FOUND'})
+
+
+
         await db.file.delete({
           where: {
-            id,
+            id:input.id,
           },
-        });
+         });
     
-        return { success: true };
+        return file;
       }),
 })
 
