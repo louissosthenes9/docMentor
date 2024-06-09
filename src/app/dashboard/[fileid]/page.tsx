@@ -1,7 +1,8 @@
-
+"use client"
 import { trpc } from "@/app/_trpc/client";
 import { notFound, redirect } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs"
 import { useRouter } from "next/navigation";
 import { db } from "@/db";
 import PdfRenderer from "@/components/PdfRenderer";
@@ -10,30 +11,23 @@ interface PageProps{
     params : {        fileid:string
     }
 }
-export default async function page({params}:PageProps) {
-   //retrieve the file id
-   // const router = useRouter()
+export default function page({params}:PageProps) {
+   
+    const router = useRouter()
+
+     //retrieve the file id
     const {fileid} = params
+   //retrieve auth data
+    const {user} =useKindeBrowserClient();
 
-    
-    //make the database call
-
-    // const [user, setUser] = useState(null);
-
-    // useEffect(() => {
-    //   // Fetch the user data from the API
-    //   fetch('/api/KindeUser')
-    //     .then(response => response.json())
-    //     .then(data => setUser(data));
-    //   }, []);
   
-      //if(!user) redirect(`/auth-callback?origin=dashboard/${fileid}`);
+      if(!user) redirect(`/auth-callback?origin=dashboard/${fileid}`);
      
       //db call 
-      const file = await db.file.findFirst({
+      const file = db.file.findFirst({
         where:{
             id:fileid,
-            //userId:user.id
+            userId:user.id
         }
       })
 

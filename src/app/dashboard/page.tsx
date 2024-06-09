@@ -1,32 +1,26 @@
 "use client"
-import { redirect, useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs"
+import { redirect} from 'next/navigation'
 import { trpc } from '@/app/_trpc/client';
 import Dashboard from '@/components/Dashboard';
-
+import { db } from "@/db";
 const page = async () => {
-   const router = useRouter()
-   const [user, setUser] = useState(null);
+   const {user} =useKindeBrowserClient();
+   
+   //check if the user is authenticated
+  if (!user || !user.id) redirect('/auth-callback?origin=dashboard')
 
-  useEffect(() => {
-    // Fetch the user data from the API
-    fetch('/api/KindeUser')
-      .then(response => response.json())
-      .then(data => setUser(data));
-    }, []);
+  //sync to the db
+  const dbUser = await db.user.findFirst({
+    where: {
+      id: user.id
+    }
+  })
 
-  //   if(!user) redirect('/auth-callback?origin=dashboard');
-  //  const {data, isLoading} = trpc.authCallback.useQuery(undefined,{
-  //     // success represents data from the database
-  //     onSuccess:({success})=>{
-  //       if(success){
-  //         //sync to the database
-  //         router.push(origin?`/${origin}`:'/dashboard')
-  //       }
-  //    }
-  //   })
+  //if not in db then redirect
+  if(!dbUser) redirect('/auth-callback?origin=dashboard')
   
-   return (
+  return (
       <Dashboard />
    )
 }
