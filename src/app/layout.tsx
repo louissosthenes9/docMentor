@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import './globals.css'
+
 import type { Metadata } from 'next'
 import NavBar from '@/components/NavBar'
 import Provider from '@/components/Provider'

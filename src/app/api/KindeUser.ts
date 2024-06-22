@@ -1,5 +1,6 @@
 
 import { getKindeServerSession } from '@kinde-oss/kinde-auth-nextjs/server'
+import { KindeUser } from '@kinde-oss/kinde-auth-nextjs/types'
 import { NextApiRequest, NextApiResponse } from 'next'
 
 export default async function handler(req :NextApiRequest, res :NextApiResponse) {
