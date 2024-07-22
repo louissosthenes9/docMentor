@@ -1,6 +1,5 @@
 "use client"
-import { DialogContent, DialogTrigger } from "@radix-ui/react-dialog"
-import { Dialog } from "./ui/dialog"
+import { Dialog,DialogContent, DialogTrigger } from "./ui/dialog"
 import { useState } from "react"
 import { Button } from "./ui/button"
 
@@ -18,8 +17,8 @@ export default function UploadButton() {
 
 
    <DialogContent>
-         
+         example content
    </DialogContent>
-    </Dialog>
+  </Dialog>
   )
 }
