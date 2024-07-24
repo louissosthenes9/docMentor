@@ -41,7 +41,7 @@ export default function NavBar() {
                         variant:"default",
                         size:'sm',
                        })}>
-                          Create Account
+                         Get Started
                        </RegisterLink>
                      </>
                 </div>
