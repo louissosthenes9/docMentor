@@ -4,6 +4,7 @@ import './globals.css'
 import type { Metadata } from 'next'
 import NavBar from '@/components/NavBar'
 import Provider from '@/components/Provider'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata: Metadata = {
   title: 'Doc🧐 mentor',
@@ -21,6 +22,7 @@ export default function RootLayout({
         'min-h-screen font-sans antialiased grainy'
       )}>
         <Provider>
+          <Toaster />
            <NavBar/>
           {children}
         </Provider>
