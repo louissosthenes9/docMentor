@@ -29,6 +29,7 @@ export default function NavBar() {
                        </Link>
 
                        <LoginLink
+                       postLoginRedirectURL="/dashboard"
                        className={buttonVariants({
                         variant:"outline",
                         size:'sm',
@@ -37,6 +38,7 @@ export default function NavBar() {
                        </LoginLink>
 
                        <RegisterLink
+                       postLoginRedirectURL="/dashboard"
                        className={buttonVariants({
                         variant:"default",
                         size:'sm',
