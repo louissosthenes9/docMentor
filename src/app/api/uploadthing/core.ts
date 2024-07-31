@@ -1,6 +1,6 @@
 
 import { db } from "@/db";
-import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs"
+import {getKindeServerSession} from "@kinde-oss/kinde-auth-nextjs/server";
 import { userAgent } from "next/server";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
@@ -13,9 +13,10 @@ export const ourFileRouter = {
     
     .middleware(async ({ req }) => {
     
-      const {user} = useKindeBrowserClient()
+      const {getUser} = getKindeServerSession()
+      const user = await getUser()
 
-      if(!user || user.id) throw new Error('Unauthorized')
+      if(!user || !user.id) throw new Error('Unauthorized')
       return {userId:user.id};
     }) 
     .onUploadComplete(async ({ metadata, file }) => {
