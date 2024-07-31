@@ -32,6 +32,27 @@ export const appRouter = router({
         }
     )
 ,
+
+getFile:privateProcedure
+.input(z.object({
+  key:z.string()
+}))
+.mutation(async ({ctx,input})=>{
+  const {userId} = ctx
+
+  const file = await db.file.findFirst({
+    where:{
+      key:input.key,
+      userId
+    }
+  })
+
+  if(!file) throw new TRPCError({code:"NOT_FOUND"})
+
+  return file
+
+}),
+// get user files endpoint
     getUserFiles:privateProcedure.query(async ({ctx})=>{
      const {userId, user} = ctx
 
@@ -42,6 +63,7 @@ export const appRouter = router({
       });
     }),
 
+//Delete file endpoint
     deleteFile: privateProcedure.input(
         z.object({
           id: z.string()
@@ -71,5 +93,8 @@ export const appRouter = router({
         return file;
       }),
 })
+
+
+
 
 export type AppRouter = typeof appRouter;
