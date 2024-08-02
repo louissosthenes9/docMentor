@@ -7,7 +7,6 @@ import { db } from "@/db";
 const page = async () => {
    const {getUser} =getKindeServerSession()
    const user = await getUser();
-   console.log(user)
 
    
    //check if the user is authenticated

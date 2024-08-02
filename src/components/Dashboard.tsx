@@ -11,7 +11,7 @@ export default function Dashboard() {
    const utils = trpc.useContext()
    const {data: files,isLoading} = trpc.getUserFiles.useQuery();
 
-  const {mutate :deleteFile}= trpc.deleteFile.useMutation({
+   const {mutate :deleteFile}= trpc.deleteFile.useMutation({
     onSuccess:()=>{
      utils.getUserFiles.invalidate()
     },
