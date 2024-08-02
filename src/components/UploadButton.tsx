@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import Dropzone from "react-dropzone";
-import { Cloud, File } from "lucide-react";
+import { Cloud, File, Loader2 } from "lucide-react";
 import { Progress } from "./ui/progress";
 import { useUploadThing } from "@/lib/uploadthing";
 import { toast } from "./ui/use-toast";
@@ -127,7 +127,17 @@ const UploadDropzone = () => {
               {
                 isUploading ? (
                   <div className="w-full mt-4 max-w-xs mx-auto">
-                         <Progress   value={uploadProgress} className="h-1 w-full bg-zinc-200"/>
+                         <Progress   
+                         value={uploadProgress} 
+                         className="h-1 w-full bg-zinc-200"/>
+                         {
+                          uploadProgress==100?(
+                            <div className="flex gap-1 items-center justify-center text-zinc-700 pt-2 ">
+                                     <Loader2 className="animate-spin h-3 w-3" />
+                                     Redirecting...
+                            </div>
+                          ):null
+                         }
                   </div>
                 ):null
               }
