@@ -1,10 +1,11 @@
 'use client'
+import SimpleBar from "simplebar-react"
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { useToast } from './ui/use-toast';
 import { useResizeDetector } from 'react-resize-detector'
-import { ChevronDown, ChevronUp, Loader2, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, RotateCw, Search } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useState } from 'react';
@@ -13,6 +14,7 @@ import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger,DropdownMenuContent } from './ui/dropdown-menu';
+import PdfFullScreen from "./PdfFullScreen"
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -26,7 +28,7 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
    const [numPages, setNumPages] = useState<number | null>(null)
    const [currPage, setCurrPage] = useState<number>(1)
    const { width, ref } = useResizeDetector()
-
+   const [rotation,setRotation]= useState<number>(0)
    const handleNextPage = () => {
       setCurrPage(prev => (prev + 1 <= (numPages ?? 1) ? prev + 1 : prev));
    };
@@ -106,9 +108,19 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
                      ))}
                   </DropdownMenuContent>
                </DropdownMenu> 
+
+                <Button
+                onClick={()=>setRotation((prev)=>prev + 90)}
+                 aria-label= "rotate 90" 
+                 variant={'ghost'}>
+                  <RotateCw  className="h-4 w-4" />
+                </Button>
+
+                <PdfFullScreen fileUrl={url} />
             </div>
          </div>
          <div className="flex-1 w-full max-h-screen">
+            <SimpleBar  autoHide={false} className="max-h-[calc(100vh-10rem)]">
             <div ref={ref}>
                <Document
                   loading={
@@ -128,9 +140,14 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
                      })
                   }}
                   file={url} className='max-h-full'>
-                  <Page pageNumber={currPage} scale={scale} width={width ? width : 1} />
+                  <Page 
+                  rotate={rotation}
+                  pageNumber={currPage} 
+                  scale={scale} 
+                  width={width ? width : 1} />
                </Document>
             </div>
+            </SimpleBar>
          </div>
       </div>
    )
