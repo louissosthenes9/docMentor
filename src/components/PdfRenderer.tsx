@@ -29,6 +29,10 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
    const [currPage, setCurrPage] = useState<number>(1)
    const { width, ref } = useResizeDetector()
    const [rotation,setRotation]= useState<number>(0)
+   const[renderedScale,setRenderedScale]=useState<number | null>(null)
+ 
+   const isLoading = renderedScale !== scale
+   
    const handleNextPage = () => {
       setCurrPage(prev => (prev + 1 <= (numPages ?? 1) ? prev + 1 : prev));
    };
@@ -140,11 +144,30 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
                      })
                   }}
                   file={url} className='max-h-full'>
-                  <Page 
+                  {isLoading && renderedScale ?
+                  (<Page 
                   rotate={rotation}
                   pageNumber={currPage} 
                   scale={scale} 
+                  key={"@"+renderedScale}
                   width={width ? width : 1} />
+                  ):
+                    
+                  <Page 
+                  className={cn(isLoading ? "hidden":"")}
+                  rotate={rotation}
+                  pageNumber={currPage} 
+                  scale={scale} 
+                  width={width ? width : 1} 
+                  key={"@"+scale}
+                  loading={
+                     <div className="flex justify-center ">
+                         <Loader2 className="my-24 animate-spin h-6 w-6 "/>
+                     </div>
+                  }
+                  onRenderSuccess={()=>{setRenderedScale(scale)}}
+                  />
+                  }
                </Document>
             </div>
             </SimpleBar>
