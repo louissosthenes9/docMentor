@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { z } from 'zod'
 import { KindeUser } from '@kinde-oss/kinde-auth-nextjs/types';
 
+
 export const appRouter = router({
   authCallback: publicProcedure.query(
     async () => {
@@ -62,6 +63,21 @@ getFile:privateProcedure
     });
 
     return files;
+  }),
+
+  getFileUploadStatus:privateProcedure
+  .input(z.object({fileId:z.string()}))
+  .query(async ({input,ctx})=>{
+    const file = await db.file.findFirst({
+      where:{
+        id: input.fileId,
+        userId:ctx.userId
+      }
+    })
+
+    if(!file) return {status : "PENDING" as const}
+
+    return {status:file.uploadStatus}
   }),
 
   deleteFile: privateProcedure
