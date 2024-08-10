@@ -22,9 +22,7 @@ interface PdfRendererProps {
 
 export default function PdfRenderer({ url }: PdfRendererProps) {
    const { toast } = useToast()
-   const [scale,setScale] = useState<Number>(1)
-   
-   
+   const [scale, setScale] = useState<number>(1)
    const [numPages, setNumPages] = useState<number | null>(null)
    const [currPage, setCurrPage] = useState<number>(1)
    const { width, ref } = useResizeDetector()
@@ -37,52 +35,28 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
       setCurrPage(prev => (prev - 1 > 0 ? prev - 1 : prev));
    };
 
-   const handlePageSubmit= ({page}:TCustomPageValidator) => {
-                      setCurrPage(Number(page))
-                          setValue("page",String("page"))
-                    }
-
-
    const CustomPageValidator = z.object({
-      page:z.string().refine((num)=>Number(num)>0 && Number(num)<=numPages!)
+      page: z.string().refine((num) => Number(num) > 0 && Number(num) <= numPages!)
    })
 
    type TCustomPageValidator = z.infer<typeof CustomPageValidator>
 
-   const {register,handleSubmit,formState:{errors}, setValue} = useForm<TCustomPageValidator>({
-          defaultValues:{
-            page:"1",        
-          },
-          resolver:zodResolver(CustomPageValidator)
+   const {register, handleSubmit, formState: {errors}, setValue} = useForm<TCustomPageValidator>({
+      defaultValues: {
+         page: "1",        
+      },
+      resolver: zodResolver(CustomPageValidator)
    })
+
+   const handlePageSubmit = ({ page }: TCustomPageValidator) => {
+      setCurrPage(Number(page))
+      setValue("page", String(page))
+   }
+
    return (
       <div className="w-full rounded-md flex flex-col bg-white shadow items-center">
          <div className="h-14 px-2 w-full border-b border-zinc-200 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-               <Button
-                  disabled={currPage >= (numPages ?? 1)}
-                  onClick={handleNextPage}
-                  variant='ghost'
-                  aria-label='next page'>
-                  <ChevronDown className='h-4 w-4 ' />
-               </Button>
-               <div className="flex items-center gap-1 5">
-                  <Input
-                  {...register("page")}
-
-                  onKeyDown={(e)=>{
-                    if(e.key ==="Enter"){
-                      handleSubmit(handlePageSubmit)()
-                    }
-                  }}
-                    
-                     className={cn('w-10 h-8',errors.page && "focus-visible:ring-500")}
-                  />
-                  <p className="text-zinc-700 text-sm space-x-1">
-                     <span>/</span>
-                     <span>{numPages ?? "x"}</span>
-                  </p>
-               </div>
                <Button
                   disabled={currPage <= 1}
                   onClick={handlePrevPage}
@@ -90,27 +64,49 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
                   aria-label='previous page'>
                   <ChevronUp className='h-4 w-4 ' />
                </Button>
+               <div className="flex items-center gap-1 5">
+                  <Input
+                     {...register("page")}
+                     placeholder={String(currPage)}
+                     onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                           handleSubmit(handlePageSubmit)()
+                        }
+                     }}
+                     className={cn('w-10 h-8', errors.page && "focus-visible:ring-500")}
+                  />
+                  <p className="text-zinc-700 text-sm space-x-1">
+                     <span>/</span>
+                     <span>{numPages ?? "x"}</span>
+                  </p>
+               </div>
+               <Button
+                  disabled={currPage >= (numPages ?? 1)}
+                  onClick={handleNextPage}
+                  variant='ghost'
+                  aria-label='next page'>
+                  <ChevronDown className='h-4 w-4 ' />
+               </Button>
             </div>
             
             <div className="space-x-2">
-                 <DropdownMenu>
-                     <DropdownMenuTrigger asChild>
-                             <Button aria-label='zoom' className='gap-1.5' variant={'ghost'}>
-                                <Search className='h-4 w-4'/>
-                                 {Number(scale) * 100}%
-                                 <ChevronDown aria-hidden='true' className='h-3 w-3 opacity-50' />
-                                  
-                             </Button>
-                     </DropdownMenuTrigger>
-                          
-                     <DropdownMenuContent>
-                          <DropdownMenuItem> 
-                                  100%
-                          </DropdownMenuItem>
-                     </DropdownMenuContent>
-                  </DropdownMenu> 
+               <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                     <Button aria-label='zoom' className='gap-1.5' variant={'ghost'}>
+                        <Search className='h-4 w-4'/>
+                        {scale * 100}%
+                        <ChevronDown aria-hidden='true' className='h-3 w-3 opacity-50' />
+                     </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                     {[0.5, 0.75, 1, 1.25, 1.5, 2].map((scaleValue) => (
+                        <DropdownMenuItem key={scaleValue} onSelect={() => setScale(scaleValue)}>
+                           {scaleValue * 100}%
+                        </DropdownMenuItem>
+                     ))}
+                  </DropdownMenuContent>
+               </DropdownMenu> 
             </div>
-
          </div>
          <div className="flex-1 w-full max-h-screen">
             <div ref={ref}>
@@ -132,7 +128,7 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
                      })
                   }}
                   file={url} className='max-h-full'>
-                  <Page pageNumber={currPage} />
+                  <Page pageNumber={currPage} scale={scale} width={width ? width : 1} />
                </Document>
             </div>
          </div>
