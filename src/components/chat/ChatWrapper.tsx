@@ -1,6 +1,6 @@
 "use client";
 import { ChevronLeft, Loader2, XCircle } from "lucide-react";
-import ChatInput from "./chatInput";
+import ChatInput from "./ChatInput";
 import Messages from "./Messages";
 import { trpc } from "@/app/_trpc/client";
 import Link from "next/link";
@@ -81,7 +81,7 @@ export default function ChatWrapper({ fileId }: Props) {
         <Messages />
       </div>
 
-      <ChatInput isDisabled={isLoading} />
+      <ChatInput isDisabled />
     </div>
   );
 }
