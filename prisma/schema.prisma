@@ -14,34 +14,53 @@ datasource db {
 }
 
 model User {
-  id String @id @unique
+  id    String @id @unique
   email String @unique
 
   File File[]
 
-  stripeCustomerId String? @unique @map(name:"Stripe_customer_id")
-  StripeSubscriptionId String? @unique @map(name:"Stripe_subcription_id")
-  StripePriceId String? @map(name:"Stripe_price_id")
-  StripeCurrentPeriodEndd DateTime?  @map(name:"Stripe_current_period_end")
+  Message Message[]
+
+  stripeCustomerId        String?   @unique @map(name: "Stripe_customer_id")
+  StripeSubscriptionId    String?   @unique @map(name: "Stripe_subcription_id")
+  StripePriceId           String?   @map(name: "Stripe_price_id")
+  StripeCurrentPeriodEndd DateTime? @map(name: "Stripe_current_period_end")
 }
 
 enum UploadStatus {
-   PENDING
-   PROCESSING
-   FAILED
-   SUCCESS
+  PENDING
+  PROCESSING
+  FAILED
+  SUCCESS
 }
 
 model File {
-  id String @id @default(cuid())
-  userId String?
-  name String 
+  id           String       @id @default(cuid())
+  userId       String?
+  name         String
   uploadStatus UploadStatus @default(PENDING)
 
-  url String
-  User User? @relation(fields: [userId], references: [id])
-  key String
+  url  String
+  User User?  @relation(fields: [userId], references: [id])
+  key  String
+
+  Messages Message[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id   String @id @default(cuid())
+  text String @db.Text()
+
+  isUserMessage Boolean
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  User   User?   @relation(fields: [userId], references: [id])
+  userId String?
+  File   File?   @relation(fields: [fileId], references: [id])
+  fileId String?
 }
