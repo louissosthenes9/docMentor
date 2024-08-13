@@ -127,6 +127,7 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
             <SimpleBar  autoHide={false} className="max-h-[calc(100vh-10rem)]">
             <div ref={ref}>
                <Document
+                  options={{ isEvalSupported: false }}
                   loading={
                      <div className='flex justify-center'>
                         <Loader2 className="my-24 h-6 w-6 animate-spin" />

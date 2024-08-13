@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import './globals.css'
-
+import Script from 'next/script'
 import type { Metadata } from 'next'
 import NavBar from '@/components/NavBar'
 import Provider from '@/components/Provider'
@@ -18,6 +18,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className='light'>
+      <head>
+      <Script id="pdf-eval-settings" strategy="beforeInteractive">
+          {`window.isEvalSupported = false;`}
+      </Script>
+      </head>
       <body className={cn(
         'min-h-screen font-sans antialiased grainy'
       )}>
