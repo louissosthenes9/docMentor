@@ -11,6 +11,8 @@
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
     "@kinde-oss/kinde-auth-nextjs": "^2.2.3",
+    "@langchain/openai": "^0.2.6",
+    "@langchain/pinecone": "^0.0.8",
     "@pinecone-database/pinecone": "^3.0.0",
     "@prisma/client": "^5.18.0",
     "@radix-ui/react-dialog": "^1.0.5",
@@ -43,6 +45,7 @@
     "lucide-react": "^0.344.0",
     "next": "14.1.1",
     "openai": "^4.54.0",
+    "parse-pdf": "^1.0.0",
     "pinecone-client": "^2.0.0",
     "postcss": "8.4.35",
     "react": "18.2.0",
