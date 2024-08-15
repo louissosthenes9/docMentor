@@ -129,7 +129,7 @@ const UploadDropzone = () => {
                   <div className="w-full mt-4 max-w-xs mx-auto">
                          <Progress   
                          value={uploadProgress} 
-                         className="h-1 w-full bg-zinc-200"/>
+                         className={`${uploadProgress===100 ? 'bg-blue-500':'bg-zinc-200' } h-1 w-full`}/>
                          {
                           uploadProgress==100?(
                             <div className="flex gap-1 items-center justify-center text-zinc-700 pt-2 ">
