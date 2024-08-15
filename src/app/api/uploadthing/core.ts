@@ -7,7 +7,7 @@ import { UploadThingError } from "uploadthing/server";
 import {PDFLoader} from 'langchain/document_loaders/fs/pdf'
 import { Pinecone } from "@pinecone-database/pinecone";
 import pc from "@/lib/pinecone";
-import { PineconeStore } from 'langchain/vectorstores/pinecone';
+import { PineconeStore } from '@langchain/pinecone';
 
 const f = createUploadthing();
  
@@ -44,21 +44,42 @@ export const ourFileRouter = {
 
           const pageLevelDocs = await loader.load()
 
-          const pagesAnt = pageLevelDocs.length 
+          const pagesAmt = pageLevelDocs.length 
 
 
-          //vectorizatiob
+          //vectorization
+         
           const pineconeIndex = pc.Index("doc")
 
           const embeddings = new OpenAIEmbeddings({
             apiKey:process.env.OPEN_AI_KEY!
           })
 
-          await PineconeStore
+          await PineconeStore.fromDocuments(pageLevelDocs,embeddings,{
+            pineconeIndex,
+            namespace:createdFile.id
+          })
 
-
+        
+          await db.file.update({
+            data:{
+              uploadStatus:"SUCCESS"
+            },
+            where:{
+              id:createdFile.id
+            }
+          })
 
         } catch (error) {
+
+          await db.file.update({
+            data:{
+              uploadStatus:"FAILED"
+            },
+            where:{
+              id:createdFile.id
+            }
+          })
           
         }
       
