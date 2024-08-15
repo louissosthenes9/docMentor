@@ -6,7 +6,7 @@ import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { PineconeStore } from "@langchain/pinecone";
 import { NextRequest } from "next/server";
-
+import {OpenAIStream,StreamingTextResponse} from "ai"
 
 export const POST = async (req : NextRequest)=>{
    
@@ -111,5 +111,21 @@ export const POST = async (req : NextRequest)=>{
        
     })
 
+
+    const stream = OpenAIStream(response,{
+        async onCompletion(completion) {
+             await db.message.create({
+                data:{
+                    text:completion,
+                    isUserMessage:false,
+                    fileId,
+                    userId
+                }
+             })
+        },
+    })   
+
+  return new StreamingTextResponse(stream) 
     
+
 }
