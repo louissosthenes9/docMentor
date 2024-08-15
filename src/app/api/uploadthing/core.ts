@@ -24,7 +24,10 @@ export const ourFileRouter = {
       return {userId:user.id};
     }) 
     .onUploadComplete(async ({ metadata, file }) => {
-        const createdFile = await db.file.create({
+
+          console.log("this is the incoming file object",file)
+          
+          const createdFile = await db.file.create({
           data:{
             key:file.key,
             name:file.name,
@@ -33,6 +36,10 @@ export const ourFileRouter = {
             uploadStatus:'PROCESSING', 
           }
         })
+
+        if(!createdFile){
+          console.log("error in creating an object in the database in core.tsc")
+        }
 
         try {
           
@@ -49,7 +56,7 @@ export const ourFileRouter = {
 
           //vectorization
          
-          const pineconeIndex = pc.Index("doc")
+          const pineconeIndex = pc.Index("doc-mentor-ai")
 
           const embeddings = new OpenAIEmbeddings({
             apiKey:process.env.OPEN_AI_KEY!
@@ -71,6 +78,9 @@ export const ourFileRouter = {
           })
 
         } catch (error) {
+
+
+          console.log("error in updating status to successfull in core.ts:" ,error)
 
           await db.file.update({
             data:{
