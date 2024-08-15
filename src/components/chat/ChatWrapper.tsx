@@ -5,6 +5,7 @@ import Messages from "./Messages";
 import { trpc } from "@/app/_trpc/client";
 import Link from "next/link";
 import { buttonVariants } from "../ui/button";
+import { ChatContextProvider } from "./ChatContext";
 
 interface Props {
   fileId: string;
@@ -76,6 +77,7 @@ export default function ChatWrapper({ fileId }: Props) {
     );
 
   return (
+    <ChatContextProvider fileId={fileId}>
     <div className="relative min-h-full flex-col divide-y bg-zinc-200 ">
       <div className="flex-1 justify-between flex flex-col mb-28">
         <Messages />
@@ -83,5 +85,6 @@ export default function ChatWrapper({ fileId }: Props) {
 
       <ChatInput isDisabled />
     </div>
+    </ChatContextProvider>
   );
 }
