@@ -1,11 +1,12 @@
 import { db } from "@/db";
+import { openai } from "@/lib/openai";
 import pc from "@/lib/pinecone";
 import { SendMessageValidator } from "@/lib/validators/SendMessageValidator";
 import { getKindeServerSession } from "@kinde-oss/kinde-auth-nextjs/server";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { PineconeStore } from "@langchain/pinecone";
 import { NextRequest } from "next/server";
-import OpenAI from "openai";
+
 
 export const POST = async (req : NextRequest)=>{
    
@@ -77,4 +78,38 @@ export const POST = async (req : NextRequest)=>{
     ))
 
 
+    const response = await openai.chat.completions.create({
+         model:"gpt-4o-mini",
+         temperature:0,
+         stream:true,
+         messages: [
+               {
+                 role: 'system',
+                 content:
+                   'Use the following pieces of context (or previous conversaton if needed) to answer the users question in markdown format.',
+               },
+               {
+                 role: 'user',
+                 content: `Use the following pieces of context (or previous conversaton if needed) to answer the users question in markdown format. \nIf you don't know the answer, just say that you don't know, don't try to make up an answer.
+                 
+           \n----------------\n
+           
+           PREVIOUS CONVERSATION:
+           ${formattedMessages.map((message) => {
+             if (message.role === 'user') return `User: ${message.content}\n`
+             return `Assistant: ${message.content}\n`
+           })}
+           
+           \n----------------\n
+           
+           CONTEXT:
+           ${results.map((r) => r.pageContent).join('\n\n')}
+           
+           USER INPUT: ${message}`,
+               },
+             ],
+       
+    })
+
+    
 }

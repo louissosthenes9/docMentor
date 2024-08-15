@@ -4,7 +4,7 @@ import {getKindeServerSession} from "@kinde-oss/kinde-auth-nextjs/server";
 import { userAgent } from "next/server";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
-import {PDFLoader} from 'langchain/document_loaders/fs/pdf'
+import {PDFLoader} from "@langchain/community/document_loaders/fs/pdf"
 import { Pinecone } from "@pinecone-database/pinecone";
 import pc from "@/lib/pinecone";
 import { PineconeStore } from '@langchain/pinecone';
