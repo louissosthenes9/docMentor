@@ -47,7 +47,7 @@ export const POST = async (req : NextRequest)=>{
     })
 
     //vectorization of the message
-    const pineconeIndex = pc.Index("doc")
+    const pineconeIndex = pc.Index("doc-mentor-ai")
 
     const embeddings = new OpenAIEmbeddings({
         apiKey:process.env.OPENAI_API_KEY,
