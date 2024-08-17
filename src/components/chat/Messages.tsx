@@ -13,8 +13,10 @@ const Messages = ({fileId}:MessagesProps) => {
     getNextPageParam:(lastPage)=>lastPage?.nextCursor,
     keepPreviousData:true
   })
+
   return (
-    <div>Message</div>
+    <div className='flex max-h-[calc(100vh-7rem)] border-zinc-200 flex-1 flex-col-reverse gap-4 p-2 overflow-y-auto scrollbar-thumb-blue scrolbar-thumb-rounded scrollbar-track-lighter scrollbar-w-2 scrolling-touch'>
+    </div>
   )
 }
 
