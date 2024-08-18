@@ -59,7 +59,7 @@ export const ourFileRouter = {
           const pineconeIndex = pc.Index("doc-mentor-ai")
 
           const embeddings = new OpenAIEmbeddings({
-            apiKey:process.env.OPEN_AI_KEY!
+            apiKey:process.env.OPEN_API_KEY!
           })
 
           await PineconeStore.fromDocuments(pageLevelDocs,embeddings,{

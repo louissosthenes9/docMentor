@@ -50,7 +50,7 @@ export const POST = async (req : NextRequest)=>{
     const pineconeIndex = pc.Index("doc-mentor-ai")
 
     const embeddings = new OpenAIEmbeddings({
-        apiKey:process.env.OPENAI_API_KEY,
+        apiKey:process.env.OPEN_API_KEY,
     })
 
     const vectorStore = await  PineconeStore.fromExistingIndex(  embeddings,{
