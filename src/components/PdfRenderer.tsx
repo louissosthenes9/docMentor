@@ -1,19 +1,20 @@
 'use client'
+
+import { useState, useCallback, useMemo } from 'react'
 import SimpleBar from "simplebar-react"
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { useToast } from './ui/use-toast';
 import { useResizeDetector } from 'react-resize-detector'
-import { ChevronDown, ChevronUp, Loader2, RotateCw, Search } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { useState } from 'react';
-import { z } from 'zod'; 
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import { cn } from '@/lib/utils';
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger,DropdownMenuContent } from './ui/dropdown-menu';
+import { ChevronDown, ChevronUp, Loader2, RotateCw, Search } from 'lucide-react'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { cn } from '@/lib/utils'
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent } from './ui/dropdown-menu'
 import PdfFullScreen from "./PdfFullScreen"
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -22,25 +23,18 @@ interface PdfRendererProps {
    url: string
 }
 
-export default function PdfRenderer({ url }: PdfRendererProps) {
+const PdfRenderer = ({ url }: PdfRendererProps) => {
    const { toast } = useToast()
    const [scale, setScale] = useState<number>(1)
    const [numPages, setNumPages] = useState<number | null>(null)
    const [currPage, setCurrPage] = useState<number>(1)
+   const [rotation, setRotation] = useState<number>(0)
+   const [renderedScale, setRenderedScale] = useState<number | null>(null)
+   const [isLoading, setIsLoading] = useState(true)
    const { width, ref } = useResizeDetector()
-   const [rotation,setRotation]= useState<number>(0)
-   const[renderedScale,setRenderedScale]=useState<number | null>(null)
- 
-   const isLoading = renderedScale !== scale
+
+   const isLoadingPage = renderedScale !== scale
    
-   const handleNextPage = () => {
-      setCurrPage(prev => (prev + 1 <= (numPages ?? 1) ? prev + 1 : prev));
-   };
-
-   const handlePrevPage = () => {
-      setCurrPage(prev => (prev - 1 > 0 ? prev - 1 : prev));
-   };
-
    const CustomPageValidator = z.object({
       page: z.string().refine((num) => Number(num) > 0 && Number(num) <= numPages!)
    })
@@ -54,10 +48,20 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
       resolver: zodResolver(CustomPageValidator)
    })
 
-   const handlePageSubmit = ({ page }: TCustomPageValidator) => {
+   const handlePageSubmit = useCallback(({ page }: TCustomPageValidator) => {
       setCurrPage(Number(page))
       setValue("page", String(page))
-   }
+   }, [setValue])
+
+   const handleNextPage = useCallback(() => {
+      setCurrPage(prev => (prev + 1 <= (numPages ?? 1) ? prev + 1 : prev))
+   }, [numPages])
+
+   const handlePrevPage = useCallback(() => {
+      setCurrPage(prev => (prev - 1 > 0 ? prev - 1 : prev))
+   }, [])
+
+   const pdfOptions = useMemo(() => ({ isEvalSupported: false }), [])
 
    return (
       <div className="w-full rounded-md flex flex-col bg-white shadow items-center">
@@ -113,66 +117,72 @@ export default function PdfRenderer({ url }: PdfRendererProps) {
                   </DropdownMenuContent>
                </DropdownMenu> 
 
-                <Button
-                onClick={()=>setRotation((prev)=>prev + 90)}
-                 aria-label= "rotate 90" 
-                 variant={'ghost'}>
-                  <RotateCw  className="h-4 w-4" />
-                </Button>
+               <Button
+                  onClick={() => setRotation((prev) => prev + 90)}
+                  aria-label="rotate 90" 
+                  variant={'ghost'}>
+                  <RotateCw className="h-4 w-4" />
+               </Button>
 
-                <PdfFullScreen fileUrl={url} />
+               <PdfFullScreen fileUrl={url} />
             </div>
          </div>
          <div className="flex-1 w-full max-h-screen">
-            <SimpleBar  autoHide={false} className="max-h-[calc(100vh-10rem)]">
-            <div ref={ref}>
-               <Document
-                  options={{ isEvalSupported: false }}
-                  loading={
-                     <div className='flex justify-center'>
-                        <Loader2 className="my-24 h-6 w-6 animate-spin" />
-                        <div className='text-sm text-center'>Please wait while we prepare the document</div>
-                     </div>
-                  }
-                  onLoadSuccess={({ numPages }) => {
-                     setNumPages(numPages)
-                  }}
-                  onLoadError={() => {
-                     toast({
-                        title: 'Error loading PDF',
-                        description: 'Please try again',
-                        variant: 'destructive'
-                     })
-                  }}
-                  file={url} className='max-h-full'>
-                  {isLoading && renderedScale ?
-                  (<Page 
-                  rotate={rotation}
-                  pageNumber={currPage} 
-                  scale={scale} 
-                  key={"@"+renderedScale}
-                  width={width ? width : 1} />
-                  ):
-                    
-                  <Page 
-                  className={cn(isLoading ? "hidden":"")}
-                  rotate={rotation}
-                  pageNumber={currPage} 
-                  scale={scale} 
-                  width={width ? width : 1} 
-                  key={"@"+scale}
-                  loading={
-                     <div className="flex justify-center ">
-                         <Loader2 className="my-24 animate-spin h-6 w-6 "/>
-                     </div>
-                  }
-                  onRenderSuccess={()=>{setRenderedScale(scale)}}
-                  />
-                  }
-               </Document>
-            </div>
+            <SimpleBar autoHide={false} className="max-h-[calc(100vh-10rem)]">
+               <div ref={ref}>
+                  <Document
+                     options={pdfOptions}
+                     loading={
+                        <div className='flex justify-center'>
+                           <Loader2 className="my-24 h-6 w-6 animate-spin" />
+                           <div className='text-sm text-center'>Please wait while we prepare the document</div>
+                        </div>
+                     }
+                     onLoadSuccess={({ numPages }) => {
+                        setNumPages(numPages)
+                        setIsLoading(false)
+                     }}
+                     onLoadError={() => {
+                        toast({
+                           title: 'Error loading PDF',
+                           description: 'Please try again',
+                           variant: 'destructive'
+                        })
+                        setIsLoading(false)
+                     }}
+                     file={url} 
+                     className='max-h-full'
+                  >
+                     {isLoadingPage && renderedScale ? (
+                        <Page 
+                           rotate={rotation}
+                           pageNumber={currPage} 
+                           scale={scale} 
+                           key={"@"+renderedScale}
+                           width={width ? width : 1} 
+                        />
+                     ) : (
+                        <Page 
+                           className={cn(isLoadingPage ? "hidden" : "")}
+                           rotate={rotation}
+                           pageNumber={currPage} 
+                           scale={scale} 
+                           width={width ? width : 1} 
+                           key={"@"+scale}
+                           loading={
+                              <div className="flex justify-center ">
+                                 <Loader2 className="my-24 animate-spin h-6 w-6 "/>
+                              </div>
+                           }
+                           onRenderSuccess={() => setRenderedScale(scale)}
+                        />
+                     )}
+                  </Document>
+               </div>
             </SimpleBar>
          </div>
       </div>
    )
 }
+
+export default PdfRenderer
