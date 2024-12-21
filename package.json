@@ -43,6 +43,7 @@
     "@uploadthing/react": "^6.6.0",
     "ai": "^3.3.7",
     "autoprefixer": "10.4.18",
+    "axios": "^1.7.9",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
