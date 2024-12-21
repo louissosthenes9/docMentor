@@ -8,120 +8,172 @@ import { NextRequest } from "next/server";
 import { StreamingTextResponse } from "ai";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
-
-export const POST = async (req: NextRequest) => {
-    const body = await req.json();
-
-    const { isAuthenticated, getUser } = getKindeServerSession();
-
-    const isUserAuthenticated = await isAuthenticated();
-    if (!isUserAuthenticated) {
-        return new Response('unauthorized', { status: 401 });
-    }
-
-    const user = await getUser();
-    //@ts-ignore
-    const userId = user.id;
-
-    const { fileId, message } = SendMessageValidator.parse(body);
-
-    const file = await db.file.findFirst({
-        where: {
-            id: fileId,
-            userId
-        }
-    });
-
-    if (!file) return new Response('Not Found', { status: 404 });
-
-    await db.message.create({
-        data: {
-            text: message,
-            isUserMessage: true,
-            userId,
-            fileId
-        }
-    });
-
-    // Vectorization of the message
-    const pineconeIndex = pc.Index("docmentor");
-
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-              apiKey: process.env.GEMINI_API_KEY!, // Use Gemini API key
-              modelName: "embedding-001", // Gemini embedding model
-            });
-
-    const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
-        pineconeIndex,
-        namespace: file.id
-    });
-
-    const results = await vectorStore.similaritySearch(message, 4);
-
-    const prevMessages = await db.message.findMany({
-        where: {
-            fileId
-        },
-        orderBy: {
-            createdAt: "asc"
-        },
-        take: 8
-    });
-
-    const formattedMessages = prevMessages.map((msg) => ({
-        role: msg.isUserMessage ? "user" : "model",
-        parts: [{ text: msg.text }]
-    }));
-
-    // Initialize Gemini chat
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const chat = model.startChat({
-        history: formattedMessages,
-        generationConfig: {
-            temperature: 0,
-        },
-    });
-
-    const systemPrompt = 'Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format.';
-
-    const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format. 
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-    CONTEXT:
-    ${results.map((r) => r.pageContent).join('\n\n')}
-
-    USER INPUT: ${message}`;
-
-    // Create a TransformStream for handling the response
-    const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
-
+// Helper function for better logging
+const prettyLog = (label: string, data: any) => {
+    console.log('\n-------------------');
+    console.log(`${label}:`);
     try {
-        const response = await chat.sendMessageStream(contextPrompt);
+        if (typeof data === 'object' && data !== null) {
+            console.log(JSON.stringify(data, null, 2));
+        } else {
+            console.log(data);
+        }
+    } catch (error) {
+        console.log('Unable to stringify:', data);
+    }
+    console.log('-------------------\n');
+};
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+export async function POST(req: NextRequest) {
+    try {
+        const { isAuthenticated, getUser } = getKindeServerSession();
+        const isUserAuthenticated = await isAuthenticated();
         
-        for await (const chunk of response.stream) {
-            const chunkText = chunk.text();
-            await writer.write(new TextEncoder().encode(chunkText));
+        if (!isUserAuthenticated) {
+            return new Response('Unauthorized', { status: 401 });
         }
 
-        // Save the complete response to the database
-        const completeResponse = await (await response.response).text();
-        await db.message.create({
-            data: {
-                text: completeResponse,
-                isUserMessage: false,
-                fileId,
-                userId
+        const user = await getUser();
+        if (!user?.id) {
+            return new Response('User not found', { status: 401 });
+        }
+
+        const body = await req.json();
+        prettyLog('Request Body', body);
+        
+        const validatedBody = SendMessageValidator.safeParse(body);
+        
+        if (!validatedBody.success) {
+            prettyLog('Validation Error', validatedBody.error);
+            return new Response('Invalid request body', { status: 400 });
+        }
+
+        const { fileId, message } = validatedBody.data;
+
+        const file = await db.file.findFirst({
+            where: {
+                id: fileId,
+                userId: user.id
             }
         });
 
-        writer.close();
-    } catch (error) {
-        console.error('Error in stream:', error);
-        writer.close();
-    }
+        if (!file) {
+            return new Response('File not found', { status: 404 });
+        }
 
-    return new StreamingTextResponse(stream.readable);
-};
+        prettyLog('File Found', file);
+
+        const userMessage = await db.message.create({
+            data: {
+                text: message,
+                isUserMessage: true,
+                userId: user.id,
+                fileId
+            }
+        });
+
+        prettyLog('User Message Created', userMessage);
+
+        const pineconeIndex = pc.Index("docmentor");
+        const embeddings = new GoogleGenerativeAIEmbeddings({
+            apiKey: process.env.GEMINI_API_KEY!,
+            modelName: "embedding-001",
+        });
+
+        const vectorStore = await PineconeStore.fromExistingIndex(embeddings, {
+            pineconeIndex,
+            namespace: file.id
+        });
+
+        const results = await vectorStore.similaritySearch(message, 4);
+        prettyLog('Similarity Search Results', results.map(r => ({
+            pageContent: r.pageContent,
+            metadata: r.metadata
+        })));
+
+        const prevMessages = await db.message.findMany({
+            where: { fileId },
+            orderBy: { createdAt: "asc" },
+            take: 8
+        });
+
+        prettyLog('Previous Messages', prevMessages);
+
+        const formattedMessages = prevMessages.map((msg) => ({
+            role: msg.isUserMessage ? "user" : "model",
+            parts: [{ text: msg.text }]
+        }));
+
+        prettyLog('Formatted Messages', formattedMessages);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const chat = model.startChat({
+            history: formattedMessages,
+            generationConfig: { temperature: 0 },
+        });
+
+        const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format. 
+        If you don't know the answer, just say that you don't know, don't try to make up an answer.
+
+        CONTEXT:
+        ${results.map((r) => r.pageContent).join('\n\n')}
+
+        USER INPUT: ${message}`;
+
+        prettyLog('Context Prompt', contextPrompt);
+
+        const stream = new TransformStream();
+        const writer = stream.writable.getWriter();
+
+        try {
+            const response = await chat.sendMessageStream(contextPrompt);
+            let fullResponse = '';
+
+            for await (const chunk of response.stream) {
+                const chunkText = chunk.text();
+                fullResponse += chunkText;
+                prettyLog('Stream Chunk', chunkText);
+                await writer.write(new TextEncoder().encode(chunkText));
+            }
+
+            prettyLog('Full Response', fullResponse);
+
+            await db.message.create({
+                data: {
+                    text: fullResponse,
+                    isUserMessage: false,
+                    fileId,
+                    userId: user.id
+                }
+            });
+
+            writer.close();
+        } catch (error) {
+            prettyLog('Stream Error', {
+                //@ts-ignore
+                message: error.message,
+                //@ts-ignore
+                stack: error.stack,
+                //@ts-ignore
+                name: error.name
+            });
+            await writer.write(new TextEncoder().encode('An error occurred while processing your request.'));
+            writer.close();
+            return new Response('Error processing stream', { status: 500 });
+        }
+
+        return new StreamingTextResponse(stream.readable);
+    } catch (error) {
+        prettyLog('API Error', {
+            //@ts-ignore
+            message: error.message,
+            //@ts-ignore
+            stack: error.stack,
+            //@ts-ignore
+            name: error.name
+        });
+        return new Response('Internal Server Error', { status: 500 });
+    }
+}
