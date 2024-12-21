@@ -26,7 +26,6 @@ export default function ChatWrapper({ fileId }: Props) {
   );
 
 
-
   if (isLoading)
     return (
       <div className="relative min-h-full bg-zinc-50 flex flex-col justify-between gap-2 divide-zinc-200">
@@ -76,6 +75,7 @@ export default function ChatWrapper({ fileId }: Props) {
       </div>
     );
 
+   
   return (
     <ChatContextProvider fileId={fileId}>
     <div className="relative min-h-full flex-col divide-y bg-zinc-200 ">
@@ -83,7 +83,7 @@ export default function ChatWrapper({ fileId }: Props) {
         <Messages fileId={fileId} />
       </div>
 
-      <ChatInput isDisabled />
+      <ChatInput />
     </div>
     </ChatContextProvider>
   );
