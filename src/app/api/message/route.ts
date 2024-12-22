@@ -138,8 +138,9 @@ export async function POST(req: NextRequest) {
                 await writer.write(new TextEncoder().encode(chunkText));
             }
 
-            prettyLog('Full Response', fullResponse);
+        
 
+          try {
             await db.message.create({
                 data: {
                     text: fullResponse,
@@ -148,8 +149,16 @@ export async function POST(req: NextRequest) {
                     userId: user.id
                 }
             });
+            
+          } catch (error) {
+            prettyLog('error in stroring message',error)
+          }
 
             writer.close();
+
+
+
+            prettyLog('Full Response', fullResponse);
         } catch (error) {
             prettyLog('Stream Error', {
                 //@ts-ignore
