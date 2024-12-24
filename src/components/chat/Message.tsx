@@ -6,8 +6,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import { ComponentProps } from "react";
-import { text } from "stream/consumers";
 import React from "react";
 
 interface MessageProps {
@@ -71,13 +69,12 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                                                 language={language}
                                                 style={vscDarkPlus}
                                                 PreTag="div"
-                                                // Fix for the customStyle type error
                                                 customStyle={{
                                                     margin: 0,
                                                     borderRadius: '0.375rem',
-                                                } as any}
+                                                }}
                                             >
-                                                {String(children).replace(/\n$/, '')}
+                                                {Array.isArray(children) ? children.join('') : String(children)}
                                             </SyntaxHighlighter>
                                         </div>
                                     );
@@ -91,7 +88,7 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                                         })}
                                         {...props}
                                     >
-                                        {children}
+                                        {Array.isArray(children) ? children.join('') : children}
                                     </code>
                                 );
                             },
@@ -124,8 +121,7 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                             }
                         }}
                     >
-                       
-                        {message.text}
+                        {typeof message.text === 'string' ? message.text : String(message.text)}
                     </ReactMarkdown>
                 </div>
             </div>

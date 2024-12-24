@@ -8,26 +8,11 @@ import { NextRequest } from "next/server";
 import { StreamingTextResponse } from "ai";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 
-// Helper function for better logging
-const prettyLog = (label: string, data: any) => {
-    console.log('\n-------------------');
-    console.log(`${label}:`);
-    try {
-        if (typeof data === 'object' && data !== null) {
-            console.log(JSON.stringify(data, null, 2));
-        } else {
-            console.log(data);
-        }
-    } catch (error) {
-        console.log('Unable to stringify:', data);
-    }
-    console.log('-------------------\n');
-};
-
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: NextRequest) {
     try {
+        // Authentication checks...
         const { isAuthenticated, getUser } = getKindeServerSession();
         const isUserAuthenticated = await isAuthenticated();
         
@@ -41,17 +26,15 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        prettyLog('Request Body', body);
-        
         const validatedBody = SendMessageValidator.safeParse(body);
         
         if (!validatedBody.success) {
-            prettyLog('Validation Error', validatedBody.error);
             return new Response('Invalid request body', { status: 400 });
         }
 
         const { fileId, message } = validatedBody.data;
 
+        // Database operations...
         const file = await db.file.findFirst({
             where: {
                 id: fileId,
@@ -63,8 +46,6 @@ export async function POST(req: NextRequest) {
             return new Response('File not found', { status: 404 });
         }
 
-        prettyLog('File Found', file);
-
         const userMessage = await db.message.create({
             data: {
                 text: message,
@@ -74,8 +55,7 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        prettyLog('User Message Created', userMessage);
-
+        // Vector search...
         const pineconeIndex = pc.Index("docmentor");
         const embeddings = new GoogleGenerativeAIEmbeddings({
             apiKey: process.env.GEMINI_API_KEY!,
@@ -88,10 +68,6 @@ export async function POST(req: NextRequest) {
         });
 
         const results = await vectorStore.similaritySearch(message, 4);
-        prettyLog('Similarity Search Results', results.map(r => ({
-            pageContent: r.pageContent,
-            metadata: r.metadata
-        })));
 
         const prevMessages = await db.message.findMany({
             where: { fileId },
@@ -99,14 +75,10 @@ export async function POST(req: NextRequest) {
             take: 8
         });
 
-        prettyLog('Previous Messages', prevMessages);
-
         const formattedMessages = prevMessages.map((msg) => ({
             role: msg.isUserMessage ? "user" : "model",
             parts: [{ text: msg.text }]
         }));
-
-        prettyLog('Formatted Messages', formattedMessages);
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const chat = model.startChat({
@@ -122,67 +94,42 @@ export async function POST(req: NextRequest) {
 
         USER INPUT: ${message}`;
 
-        prettyLog('Context Prompt', contextPrompt);
-
-        const stream = new TransformStream();
-        const writer = stream.writable.getWriter();
-
-        try {
-            const response = await chat.sendMessageStream(contextPrompt);
-            let fullResponse = '';
-
-            for await (const chunk of response.stream) {
-                const chunkText = chunk.text();
-                fullResponse += chunkText;
-                prettyLog('Stream Chunk', chunkText);
-                await writer.write(new TextEncoder().encode(chunkText));
-            }
-
-        
-
-          try {
-            await db.message.create({
-                data: {
-                    text: fullResponse,
-                    isUserMessage: false,
-                    fileId,
-                    userId: user.id
+        // Key changes in streaming implementation
+        const response = await chat.sendMessageStream(contextPrompt);
+        const stream = new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                let fullResponse = '';
+                
+                try {
+                    for await (const chunk of response.stream) {
+                        const chunkText = chunk.text();
+                        fullResponse += chunkText;
+                        controller.enqueue(encoder.encode(chunkText));
+                    }
+                    
+                    // Store AI response after stream is complete
+                    if (fullResponse.trim()) {
+                        await db.message.create({
+                            data: {
+                                text: fullResponse,
+                                isUserMessage: false,
+                                fileId,
+                                userId: user.id
+                            }
+                        });
+                    }
+                    
+                    controller.close();
+                } catch (error) {
+                    controller.error(error);
                 }
-            });
-            
-          } catch (error) {
-            prettyLog('error in stroring message',error)
-          }
-
-            writer.close();
-
-
-
-            prettyLog('Full Response', fullResponse);
-        } catch (error) {
-            prettyLog('Stream Error', {
-                //@ts-ignore
-                message: error.message,
-                //@ts-ignore
-                stack: error.stack,
-                //@ts-ignore
-                name: error.name
-            });
-            await writer.write(new TextEncoder().encode('An error occurred while processing your request.'));
-            writer.close();
-            return new Response('Error processing stream', { status: 500 });
-        }
-
-        return new StreamingTextResponse(stream.readable);
-    } catch (error) {
-        prettyLog('API Error', {
-            //@ts-ignore
-            message: error.message,
-            //@ts-ignore
-            stack: error.stack,
-            //@ts-ignore
-            name: error.name
+            }
         });
+
+        return new StreamingTextResponse(stream);
+    } catch (error) {
+        console.error('API Error:', error);
         return new Response('Internal Server Error', { status: 500 });
     }
 }
