@@ -86,8 +86,7 @@ export async function POST(req: NextRequest) {
             generationConfig: { temperature: 0 },
         });
 
-        const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format. 
-        If you don't know the answer, just say that you don't know, don't try to make up an answer.
+        const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format.Also fetch information from the internet or other sources to enrich your answer. Make your answers easy to understand and accurate
 
         CONTEXT:
         ${results.map((r) => r.pageContent).join('\n\n')}
