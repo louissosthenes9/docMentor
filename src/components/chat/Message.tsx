@@ -6,14 +6,17 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import React from "react";
+import React, { useContext } from "react";
+import { format, formatDistanceToNow } from "date-fns";
+import { MessagesPage } from "openai/resources/beta/threads/messages.mjs";
+import { Loader2Icon } from "lucide-react";
+import { ChatContext } from "./ChatContext";
 
 interface MessageProps {
     message: ExtendedMessage;
     isNextMessageSamePerson: boolean;
 }
 
-// Define proper types for the code component props
 type CodeProps = {
     inline?: boolean;
     className?: string;
@@ -21,10 +24,38 @@ type CodeProps = {
 };
 
 export default function Message({ message, isNextMessageSamePerson }: MessageProps) {
+    const isWaiting = message.id === "loading-message";
+
+    const {isLoading} = useContext(ChatContext)
+
+    const formatMessageTime = (date: Date | string | number) => {
+        try {
+            const messageDate = new Date(date);
+            const absolute = format(messageDate, 'HH:mm');
+            const relative = formatDistanceToNow(messageDate, { addSuffix: true });
+            return { absolute, relative };
+        } catch (error) {
+            console.error('Error formatting date:', error);
+            return { absolute: '--:--', relative: 'unknown time' };
+        }
+    };
+
+    const timeDisplay = React.useMemo(() => {
+        if (isWaiting || !message.createdAt) return null;
+        return formatMessageTime(message.createdAt);
+    }, [message.createdAt, isWaiting]);
+
+    const [showRelativeTime, setShowRelativeTime] = React.useState(true);
+    
+    const toggleTimeFormat = () => {
+        setShowRelativeTime(prev => !prev);
+    };
+
     return (
         <div
             className={cn('flex items-end', {
                 "justify-end": message.isUserMessage,
+                "opacity-70": isLoading
             })}
         >
             <div className={cn("relative flex h-6 w-6 aspect-square items-center justify-center", {
@@ -49,80 +80,100 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                     "rounded-br-none": !isNextMessageSamePerson && message.isUserMessage,
                     "rounded-bl-none": !isNextMessageSamePerson && !message.isUserMessage
                 })}>
-                    <ReactMarkdown
-                        className={cn("prose prose-sm max-w-none", {
-                            'text-zinc-50 prose-headings:text-zinc-50 prose-strong:text-zinc-50 prose-code:text-zinc-50': message.isUserMessage,
-                            'text-zinc-800 prose-headings:text-zinc-800 prose-strong:text-zinc-800 prose-code:text-zinc-800': !message.isUserMessage,
-                            'prose-p:leading-relaxed prose-pre:p-0': true
-                        })}
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={{
-                            code({ inline, className, children, ...props }: CodeProps) {
-                                const match = /language-(\w+)/.exec(className || '');
-                                const language = match ? match[1] : '';
+                    {isLoading ? (
+                        <div className="flex items-center space-x-2">
+                            <span className="text-zinc-50">Loading</span>
+                            <Loader2Icon className="animate-spin h-4 w-4 text-zinc-50" />
+                        </div>
+                    ) : (
+                        <ReactMarkdown
+                            className={cn("prose prose-sm max-w-none", {
+                                'text-zinc-50 prose-headings:text-zinc-50 prose-strong:text-zinc-50 prose-code:text-zinc-50': message.isUserMessage,
+                                'text-zinc-800 prose-headings:text-zinc-800 prose-strong:text-zinc-800 prose-code:text-zinc-800': !message.isUserMessage,
+                                'prose-p:leading-relaxed prose-pre:p-0': true
+                            })}
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeRaw]}
+                            components={{
+                                code({ inline, className, children, ...props }: CodeProps) {
+                                    const match = /language-(\w+)/.exec(className || '');
+                                    const language = match ? match[1] : '';
 
-                                if (!inline && language) {
+                                    if (!inline && language) {
+                                        return (
+                                            <div className="rounded-md overflow-hidden my-2">
+                                                <SyntaxHighlighter
+                                                    language={language}
+                                                    style={vscDarkPlus}
+                                                    PreTag="div"
+                                                    customStyle={{
+                                                        margin: 0,
+                                                        borderRadius: '0.375rem',
+                                                    }}
+                                                >
+                                                    {Array.isArray(children) ? children.join('') : String(children)}
+                                                </SyntaxHighlighter>
+                                            </div>
+                                        );
+                                    }
+
                                     return (
-                                        <div className="rounded-md overflow-hidden my-2">
-                                            <SyntaxHighlighter
-                                                language={language}
-                                                style={vscDarkPlus}
-                                                PreTag="div"
-                                                customStyle={{
-                                                    margin: 0,
-                                                    borderRadius: '0.375rem',
-                                                }}
-                                            >
-                                                {Array.isArray(children) ? children.join('') : String(children)}
-                                            </SyntaxHighlighter>
-                                        </div>
+                                        <code
+                                            className={cn("rounded px-1 py-0.5", {
+                                                "bg-zinc-700 text-zinc-50": message.isUserMessage,
+                                                "bg-zinc-200 text-zinc-800": !message.isUserMessage
+                                            })}
+                                            {...props}
+                                        >
+                                            {Array.isArray(children) ? children.join('') : children}
+                                        </code>
+                                    );
+                                },
+                                p({ children }) {
+                                    return <p className="mb-2 last:mb-0">{children}</p>;
+                                },
+                                ul({ children }) {
+                                    return <ul className="list-disc pl-4 mb-2 last:mb-0">{children}</ul>;
+                                },
+                                ol({ children }) {
+                                    return <ol className="list-decimal pl-4 mb-2 last:mb-0">{children}</ol>;
+                                },
+                                li({ children }) {
+                                    return <li className="mb-1 last:mb-0">{children}</li>;
+                                },
+                                a({ href, children }) {
+                                    return (
+                                        <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className={cn("underline", {
+                                                "text-zinc-50 hover:text-zinc-200": message.isUserMessage,
+                                                "text-blue-600 hover:text-blue-800": !message.isUserMessage
+                                            })}
+                                        >
+                                            {children}
+                                        </a>
                                     );
                                 }
+                            }}
+                        >
+                            {typeof message.text === 'string' ? message.text : String(message.text)}
+                        </ReactMarkdown>
+                    )}
 
-                                return (
-                                    <code
-                                        className={cn("rounded px-1 py-0.5", {
-                                            "bg-zinc-700 text-zinc-50": message.isUserMessage,
-                                            "bg-zinc-200 text-zinc-800": !message.isUserMessage
-                                        })}
-                                        {...props}
-                                    >
-                                        {Array.isArray(children) ? children.join('') : children}
-                                    </code>
-                                );
-                            },
-                            p({ children }) {
-                                return <p className="mb-2 last:mb-0">{children}</p>;
-                            },
-                            ul({ children }) {
-                                return <ul className="list-disc pl-4 mb-2 last:mb-0">{children}</ul>;
-                            },
-                            ol({ children }) {
-                                return <ol className="list-decimal pl-4 mb-2 last:mb-0">{children}</ol>;
-                            },
-                            li({ children }) {
-                                return <li className="mb-1 last:mb-0">{children}</li>;
-                            },
-                            a({ href, children }) {
-                                return (
-                                    <a
-                                        href={href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className={cn("underline", {
-                                            "text-zinc-50 hover:text-zinc-200": message.isUserMessage,
-                                            "text-blue-600 hover:text-blue-800": !message.isUserMessage
-                                        })}
-                                    >
-                                        {children}
-                                    </a>
-                                );
-                            }
-                        }}
-                    >
-                        {typeof message.text === 'string' ? message.text : String(message.text)}
-                    </ReactMarkdown>
+                    {timeDisplay && (
+                        <div 
+                            className={cn("text-xs select-none mt-2 w-full text-right cursor-pointer", {
+                                "text-zinc-500": !message.isUserMessage,
+                                "text-blue-300": message.isUserMessage
+                            })}
+                            onClick={toggleTimeFormat}
+                            title="Click to toggle time format"
+                        >
+                            {showRelativeTime ? timeDisplay.relative : timeDisplay.absolute}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
