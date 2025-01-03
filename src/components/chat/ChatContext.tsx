@@ -46,7 +46,6 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
     },
 
     onMutate: async ({ message }) => {
-      setIsLoading(true)
       // Store the message in case we need to rollback
       backupMessage.current = message;
       
@@ -94,7 +93,7 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         }
       );
 
-     
+      setIsLoading(true);
       setMessage("");
 
       // Return the previous messages for rollback if needed
