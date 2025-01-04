@@ -1,7 +1,7 @@
 import React, { useContext, useRef } from 'react'
 import { Textarea } from '../ui/textarea'
 import { Button } from '../ui/button'
-import { Send } from 'lucide-react'
+import { Send, Loader2 } from 'lucide-react'
 import { ChatContext } from './ChatContext'
 
 interface Props {
@@ -13,15 +13,6 @@ const ChatInput = ({ isDisabled = false }: Props) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        
-        if (!message.trim()) return
-        
-        await addMessages()
-        textareaRef.current?.focus()
-    }
-
-    const handleButtonClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault()
         
         if (!message.trim()) return
@@ -63,10 +54,18 @@ const ChatInput = ({ isDisabled = false }: Props) => {
                                 disabled={isLoading || isDisabled || !message.trim()}
                                 className='absolute bottom-1.5 right-[9px]'
                                 aria-label='send message'
-                                onClick={handleButtonClick}
                                 type='button'
+                                onClick={() => {
+                                    if (!message.trim()) return
+                                    addMessages()
+                                    textareaRef.current?.focus()
+                                }}
                             >
-                                <Send className='h-4 w-4' />
+                                {isLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Send className='h-4 w-4' />
+                                )}
                             </Button>
                         </div>
                     </div>

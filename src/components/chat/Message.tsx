@@ -8,7 +8,6 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import React, { useContext } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { MessagesPage } from "openai/resources/beta/threads/messages.mjs";
 import { Loader2Icon } from "lucide-react";
 import { ChatContext } from "./ChatContext";
 
@@ -24,9 +23,8 @@ type CodeProps = {
 };
 
 export default function Message({ message, isNextMessageSamePerson }: MessageProps) {
-    const isWaiting = message.id === "loading-message";
-
-    const {isLoading} = useContext(ChatContext)
+    const { loadingMessageId } = useContext(ChatContext);
+    const isLoading = message.id === loadingMessageId;
 
     const formatMessageTime = (date: Date | string | number) => {
         try {
@@ -41,9 +39,9 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
     };
 
     const timeDisplay = React.useMemo(() => {
-        if (isWaiting || !message.createdAt) return null;
+        if (!message.createdAt) return null;
         return formatMessageTime(message.createdAt);
-    }, [message.createdAt, isWaiting]);
+    }, [message.createdAt]);
 
     const [showRelativeTime, setShowRelativeTime] = React.useState(true);
     
@@ -82,7 +80,7 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                 })}>
                     {isLoading ? (
                         <div className="flex items-center space-x-2">
-                            <span className="text-zinc-50">Loading</span>
+                            <span className="text-zinc-50">Sending</span>
                             <Loader2Icon className="animate-spin h-4 w-4 text-zinc-50" />
                         </div>
                     ) : (
@@ -162,7 +160,7 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                         </ReactMarkdown>
                     )}
 
-                    {timeDisplay && (
+                    {timeDisplay && !isLoading && (
                         <div 
                             className={cn("text-xs select-none mt-2 w-full text-right cursor-pointer", {
                                 "text-zinc-500": !message.isUserMessage,
@@ -177,5 +175,6 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                 </div>
             </div>
         </div>
-    )
+    );
 }
+

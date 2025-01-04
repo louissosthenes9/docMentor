@@ -1,3 +1,4 @@
+
 import React, { createContext, ReactNode, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import { useMutation } from "@tanstack/react-query";
@@ -6,16 +7,18 @@ import { trpc } from "@/app/_trpc/client";
 import { INFINITE_QUERY_LIMIT } from "@/config/infinite-query";
 
 type StreamResponse = {
-  addMessages: () => void;
-  message: string;  
+  addMessages: () => Promise<void>;
+  message: string;
   handleInputChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  loadingMessageId: string | null;
   isLoading: boolean;
 };
 
 export const ChatContext = createContext<StreamResponse>({
-  addMessages: () => {},
+  addMessages: async () => {},
   message: "",
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {},
+  loadingMessageId: null,
   isLoading: false,
 });
 
@@ -26,12 +29,13 @@ interface Props {
 
 export const ChatContextProvider = ({ fileId, children }: Props) => {
   const [message, setMessage] = useState<string>("");
+  const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const utils = trpc.useContext();
   const backupMessage = useRef('');
+  const utils = trpc.useContext();
 
-  const { mutate: sendMessage } = useMutation({
+  const { mutate: sendMessage, isLoading: isMutationLoading } = useMutation({
     mutationFn: async ({ message }: { message: string }) => {
       const response = await axios.post("/api/message", {
         fileId,
@@ -46,19 +50,18 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
     },
 
     onMutate: async ({ message }) => {
-      // Store the message in case we need to rollback
+      setIsLoading(true);
       backupMessage.current = message;
-      
-      // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await utils.getFileMessages.cancel();
 
-      // Snapshot the previous value
       const previousMessages = utils.getFileMessages.getInfiniteData({
         fileId,
         limit: INFINITE_QUERY_LIMIT,
       });
 
-      // Optimistically update the messages
+      const tempId = `temp-${Date.now()}`;
+      setLoadingMessageId(tempId);
+
       utils.getFileMessages.setInfiniteData(
         { fileId, limit: INFINITE_QUERY_LIMIT },
         (old) => {
@@ -70,12 +73,11 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
           }
 
           const newPages = old.pages.map((page, index) => {
-            // Only update the most recent page
             if (index === 0) {
               return {
                 ...page,
                 messages: [{
-                  id: `temp-${Date.now()}`,
+                  id: tempId,
                   text: message,
                   isUserMessage: true,
                   createdAt: new Date().toISOString(),
@@ -93,28 +95,22 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         }
       );
 
-      setIsLoading(true);
       setMessage("");
-
-      // Return the previous messages for rollback if needed
-      return { previousMessages };
+      return { previousMessages, tempId };
     },
 
-    onSuccess: async (response) => {
-      // Update the messages with the real response
+    onSuccess: async (response, _, context) => {
       utils.getFileMessages.setInfiniteData(
         { fileId, limit: INFINITE_QUERY_LIMIT },
         (old) => {
           if (!old) return { pages: [], pageParams: [] };
 
           const newPages = old.pages.map((page, index) => {
-            // Only update the most recent page
             if (index === 0) {
               return {
                 ...page,
                 messages: page.messages.map((msg) => {
-                  // Replace the temporary message with the real one
-                  if (msg.id.startsWith('temp-')) {
+                  if (msg.id === context?.tempId) {
                     return {
                       ...msg,
                       id: response.id,
@@ -132,11 +128,11 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         }
       );
 
+      setLoadingMessageId(null);
       setIsLoading(false);
     },
 
     onError: (_, __, context) => {
-      // Rollback to the previous state
       if (context?.previousMessages) {
         utils.getFileMessages.setInfiniteData(
           { fileId, limit: INFINITE_QUERY_LIMIT },
@@ -144,8 +140,8 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         );
       }
 
-      // Restore the input message
       setMessage(backupMessage.current);
+      setLoadingMessageId(null);
       setIsLoading(false);
 
       toast({
@@ -156,12 +152,11 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
     },
 
     onSettled: () => {
-      // Invalidate the query to ensure we're in sync with the server
       utils.getFileMessages.invalidate({ fileId });
     },
   });
 
-  const addMessages = () => {
+  const addMessages = async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage) return;
     sendMessage({ message: trimmedMessage });
@@ -177,7 +172,8 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         addMessages,
         message,
         handleInputChange,
-        isLoading,
+        loadingMessageId,
+        isLoading: isLoading || isMutationLoading,
       }}
     >
       {children}
