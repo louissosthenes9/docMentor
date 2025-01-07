@@ -8,11 +8,21 @@ import { NextRequest } from "next/server";
 import { StreamingTextResponse } from "ai";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 
+// Define the Message type interface
+interface Message {
+    id: string;
+    text: string;
+    isUserMessage: boolean;
+    userId: string;
+    fileId: string;
+    createdAt: Date;
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: NextRequest) {
     try {
-        // Authentication checks...
+        // Authentication checks
         const { isAuthenticated, getUser } = getKindeServerSession();
         const isUserAuthenticated = await isAuthenticated();
         
@@ -34,7 +44,7 @@ export async function POST(req: NextRequest) {
 
         const { fileId, message } = validatedBody.data;
 
-        // Database operations...
+        // Database operations
         const file = await db.file.findFirst({
             where: {
                 id: fileId,
@@ -55,7 +65,7 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // Vector search...
+        // Vector search
         const pineconeIndex = pc.Index("docmentor");
         const embeddings = new GoogleGenerativeAIEmbeddings({
             apiKey: process.env.GEMINI_API_KEY!,
@@ -73,9 +83,9 @@ export async function POST(req: NextRequest) {
             where: { fileId },
             orderBy: { createdAt: "asc" },
             take: 8
-        });
+        }) as Message[];
 
-        const formattedMessages = prevMessages.map((msg) => ({
+        const formattedMessages = prevMessages.map((msg: Message) => ({
             role: msg.isUserMessage ? "user" : "model",
             parts: [{ text: msg.text }]
         }));
@@ -86,14 +96,14 @@ export async function POST(req: NextRequest) {
             generationConfig: { temperature: 0 },
         });
 
-        const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format.Also fetch information from the internet or other sources to enrich your answer. Make your answers easy to understand and accurate
+        const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format. Also fetch information from the internet or other sources to enrich your answer. Make your answers easy to understand and accurate
 
         CONTEXT:
         ${results.map((r) => r.pageContent).join('\n\n')}
 
         USER INPUT: ${message}`;
 
-        // Key changes in streaming implementation
+        // Stream implementation
         const response = await chat.sendMessageStream(contextPrompt);
         const stream = new ReadableStream({
             async start(controller) {
