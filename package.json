@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
-    "start": "next start"
+    "postinstall": "npx prisma generate",
+    "vercel-build": "npx prisma generate && npx prisma migrate deploy && next build"
+   
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -76,6 +76,7 @@
   },
   "devDependencies": {
     "@types/react-syntax-highlighter": "^15.5.13",
-    "eslint": "^9.17.0"
+    "eslint": "^9.17.0",
+    "prisma":"5.18.0"
   }
 }
