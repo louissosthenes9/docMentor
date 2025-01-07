@@ -1,78 +1,206 @@
-import React, { useContext, useRef } from 'react'
-import { Textarea } from '../ui/textarea'
-import { Button } from '../ui/button'
-import { Send, Loader2 } from 'lucide-react'
-import { ChatContext } from './ChatContext'
+import React, { createContext, ReactNode, useRef, useState } from "react";
+import { useToast } from "../ui/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import axios from 'axios';
+import { trpc } from "@/app/_trpc/client";
+import { INFINITE_QUERY_LIMIT } from "@/config/infinite-query";
+
+// Updated interfaces to match the actual data structure
+interface Message {
+  id: string;
+  text: string;
+  isUserMessage: boolean;
+  createdAt: string;
+  fileId: string;
+}
+
+interface ApiMessage {
+  id: string;
+  createdAt: string;
+  text: string;
+  isUserMessage: boolean;
+}
+
+interface MessagesPage {
+  messages: ApiMessage[];
+  nextCursor?: string;
+}
+
+interface ApiResponse {
+  id: string;
+  text: string;
+}
+
+type StreamResponse = {
+  addMessages: () => Promise<void>;
+  message: string;
+  handleInputChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  loadingMessageId: string | null;
+  isLoading: boolean;
+};
+
+export const ChatContext = createContext<StreamResponse>({
+  addMessages: async () => {},
+  message: "",
+  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {},
+  loadingMessageId: null,
+  isLoading: false,
+});
 
 interface Props {
-    isDisabled?: boolean
+  fileId: string;
+  children: ReactNode;
 }
 
-const ChatInput = ({ isDisabled = false }: Props) => {
-    const { addMessages, handleInputChange, isLoading, message } = useContext(ChatContext)
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
+export const ChatContextProvider = ({ fileId, children }: Props) => {
+  const [message, setMessage] = useState<string>("");
+  const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const backupMessage = useRef('');
+  const utils = trpc.useContext();
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        
-        if (!message.trim()) return
-        
-        await addMessages()
-        textareaRef.current?.focus()
-    }
+  const { mutate: sendMessage, isLoading: isMutationLoading } = useMutation({
+    mutationFn: async ({ message }: { message: string }) => {
+      const response = await axios.post<ApiResponse>("/api/message", {
+        fileId,
+        message,
+      });
+    
+      if (response.status !== 200) {
+        throw new Error("Failed to send message");
+      }
 
-    return (
-        <div className='absolute bottom-0 left-0 w-full'>
-            <form 
-                className='mx-2 flex flex-row gap-3 md:mx-4 md:last:mb-6 lg:mx-auto lg:max-w-2xl xl:max-w-3xl'
-                onSubmit={handleSubmit}
-            >
-                <div className="relative flex h-full flex-1 items-stretch md:flex-col">
-                    <div className="relative flex flex-col w-full flex-grow p-4">
-                        <div className="relative">
-                            <Textarea
-                                rows={1}
-                                maxRows={7}
-                                ref={textareaRef}
-                                value={message}
-                                onChange={handleInputChange}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault()
-                                        if (!message.trim()) return
-                                        addMessages()
-                                        textareaRef.current?.focus()
-                                    }
-                                }}
-                                disabled={isLoading || isDisabled}
-                                autoFocus
-                                placeholder='Enter your question...'
-                                className='resize-none pr-12 text-base py-3 scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-2 disabled:opacity-50'
-                            />
+      return response.data;
+    },
 
-                            <Button
-                                disabled={isLoading || isDisabled || !message.trim()}
-                                className='absolute bottom-1.5 right-[9px]'
-                                aria-label='send message'
-                                type='button'
-                                onClick={() => {
-                                    if (!message.trim()) return
-                                    addMessages()
-                                    textareaRef.current?.focus()
-                                }}
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className='h-4 w-4' />
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-        </div>
-    )
-}
+    onMutate: async ({ message }) => {
+      setIsLoading(true);
+      backupMessage.current = message;
+      await utils.getFileMessages.cancel();
 
-export default ChatInput
+      const previousMessages = utils.getFileMessages.getInfiniteData({
+        fileId,
+        limit: INFINITE_QUERY_LIMIT,
+      });
+
+      const tempId = `temp-${Date.now()}`;
+      setLoadingMessageId(tempId);
+
+      utils.getFileMessages.setInfiniteData(
+        { fileId, limit: INFINITE_QUERY_LIMIT },
+        (old) => {
+          if (!old) {
+            return {
+              pages: [],
+              pageParams: [],
+            };
+          }
+
+          const newPages = old.pages.map((page: MessagesPage,index:Number) => {
+            if (index === 0) {
+              return {
+                ...page,
+                messages: [{
+                  id: tempId,
+                  text: message,
+                  isUserMessage: true,
+                  createdAt: new Date().toISOString(),
+                } as ApiMessage, ...page.messages],
+              };
+            }
+            return page;
+          });
+
+          return {
+            ...old,
+            pages: newPages,
+          };
+        }
+      );
+
+      setMessage("");
+      return { previousMessages, tempId };
+    },
+
+    onSuccess: async (response, _, context) => {
+      utils.getFileMessages.setInfiniteData(
+        { fileId, limit: INFINITE_QUERY_LIMIT },
+        (old) => {
+          if (!old) return { pages: [], pageParams: [] };
+
+          const newPages = old.pages.map((page: MessagesPage,index:Number) => {
+            if (index === 0) {
+              return {
+                ...page,
+                messages: page.messages.map((msg: ApiMessage) => {
+                  if (msg.id === context?.tempId) {
+                    return {
+                      ...msg,
+                      id: response.id,
+                      text: response.text,
+                    };
+                  }
+                  return msg;
+                }),
+              };
+            }
+            return page;
+          });
+
+          return { ...old, pages: newPages };
+        }
+      );
+
+      setLoadingMessageId(null);
+      setIsLoading(false);
+    },
+
+    onError: (_, __, context) => {
+      if (context?.previousMessages) {
+        utils.getFileMessages.setInfiniteData(
+          { fileId, limit: INFINITE_QUERY_LIMIT },
+          context.previousMessages
+        );
+      }
+
+      setMessage(backupMessage.current);
+      setLoadingMessageId(null);
+      setIsLoading(false);
+
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    },
+
+    onSettled: () => {
+      utils.getFileMessages.invalidate({ fileId });
+    },
+  });
+
+  const addMessages = async () => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) return;
+    sendMessage({ message: trimmedMessage });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+  };
+
+  return (
+    <ChatContext.Provider
+      value={{
+        addMessages,
+        message,
+        handleInputChange,
+        loadingMessageId,
+        isLoading: isLoading || isMutationLoading,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+};
