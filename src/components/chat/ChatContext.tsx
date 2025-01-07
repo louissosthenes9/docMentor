@@ -97,7 +97,7 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
             };
           }
 
-          const newPages = old.pages.map((page, index) => {
+          const newPages = old.pages.map((page: MessagesPage,index:Number) => {
             if (index === 0) {
               return {
                 ...page,
@@ -129,11 +129,11 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         (old) => {
           if (!old) return { pages: [], pageParams: [] };
 
-          const newPages = old.pages.map((page, index) => {
+          const newPages = old.pages.map((page: MessagesPage,index:Number) => {
             if (index === 0) {
               return {
                 ...page,
-                messages: page.messages.map((msg) => {
+                messages: page.messages.map((msg: ApiMessage) => {
                   if (msg.id === context?.tempId) {
                     return {
                       ...msg,
