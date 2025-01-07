@@ -1,10 +1,35 @@
-
 import React, { createContext, ReactNode, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import axios from 'axios';
 import { trpc } from "@/app/_trpc/client";
 import { INFINITE_QUERY_LIMIT } from "@/config/infinite-query";
+
+// Updated interfaces to match the actual data structure
+interface Message {
+  id: string;
+  text: string;
+  isUserMessage: boolean;
+  createdAt: string;
+  fileId: string;
+}
+
+interface ApiMessage {
+  id: string;
+  createdAt: string;
+  text: string;
+  isUserMessage: boolean;
+}
+
+interface MessagesPage {
+  messages: ApiMessage[];
+  nextCursor?: string;
+}
+
+interface ApiResponse {
+  id: string;
+  text: string;
+}
 
 type StreamResponse = {
   addMessages: () => Promise<void>;
@@ -37,7 +62,7 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
 
   const { mutate: sendMessage, isLoading: isMutationLoading } = useMutation({
     mutationFn: async ({ message }: { message: string }) => {
-      const response = await axios.post("/api/message", {
+      const response = await axios.post<ApiResponse>("/api/message", {
         fileId,
         message,
       });
@@ -81,8 +106,7 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
                   text: message,
                   isUserMessage: true,
                   createdAt: new Date().toISOString(),
-                  fileId,
-                }, ...page.messages],
+                } as ApiMessage, ...page.messages],
               };
             }
             return page;
