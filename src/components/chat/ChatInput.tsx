@@ -1,4 +1,4 @@
-/* eslint-disable */ 
+/* eslint no-use-before-define: 2 */
 import React, { useContext, useRef } from "react";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
