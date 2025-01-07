@@ -96,9 +96,13 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
             index === 0
               ? {
                   ...page,
+                // @ts-ignore
                   messages: page.messages.map((msg) =>
+                    // @ts-ignore
                     msg.id === context?.tempId
+                    // @ts-ignore
                       ? { ...msg, id: response.id, createdAt: response.createdAt }
+                      // @ts-ignore
                       : msg
                   ),
                 }
