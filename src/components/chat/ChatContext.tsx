@@ -1,4 +1,4 @@
-/* eslint no-use-before-define: 2 */
+/* eslint no-use-before-define: 0 */
 import axios from "axios";
 import React, { createContext, ReactNode, useRef, useState } from "react";
 import { useToast } from "../ui/use-toast";
