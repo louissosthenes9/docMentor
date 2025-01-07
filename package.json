@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
@@ -47,8 +46,6 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.6.0",
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.1.1",
     "langchain": "^0.2.15",
     "lucide-react": "^0.344.0",
     "next": "14.1.1",
