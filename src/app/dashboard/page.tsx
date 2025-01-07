@@ -4,7 +4,7 @@ import { redirect} from 'next/navigation'
 import { trpc } from '@/app/_trpc/client';
 import Dashboard from '@/components/Dashboard';
 import { db } from "@/db";
-const page = async () => {
+const Page = async () => {
    const {getUser} =getKindeServerSession()
    const user = await getUser();
 
@@ -27,4 +27,4 @@ const page = async () => {
    )
 }
 
-export default page;
+export default Page;
