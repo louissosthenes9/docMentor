@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // Vector search
+        // Vector search with increased number of results for better context
         const pineconeIndex = pc.Index("docmentor");
         const embeddings = new GoogleGenerativeAIEmbeddings({
             apiKey: process.env.GEMINI_API_KEY!,
@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
             namespace: file.id
         });
 
-        const results = await vectorStore.similaritySearch(message, 4);
+        // Increased to 6 results for better context coverage
+        const results = await vectorStore.similaritySearch(message, 6);
 
         const prevMessages = await db.message.findMany({
             where: { fileId },
@@ -93,17 +94,34 @@ export async function POST(req: NextRequest) {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const chat = model.startChat({
             history: formattedMessages,
-            generationConfig: { temperature: 0 },
+            generationConfig: { temperature: 0.3 }, // Slightly increased for more natural responses
         });
 
-        const contextPrompt = `Use the following pieces of context (or previous conversation if needed) to answer the users question in markdown format. Also fetch information from the internet or other sources to enrich your answer. Make your answers easy to understand and accurate
+        const contextPrompt = `You are an AI assistant specifically trained to answer questions about the uploaded document. Follow these rules strictly:
 
-        CONTEXT:
-        ${results.map((r) => r.pageContent).join('\n\n')}
+1. PRIMARY SOURCE: Always prioritize information from the uploaded document first. The relevant excerpts from the document are provided below as your primary context.
 
-        USER INPUT: ${message}`;
+2. CONTEXT USAGE:
+   - If the document context fully answers the question: Use ONLY the document information
+   - If the document context partially answers the question: Start with document information, then supplement with additional knowledge
+   - If the document context is irrelevant or insufficient: Only then rely on your general knowledge
 
-        // Stream implementation
+3. RESPONSE STRUCTURE:
+   - Begin responses with information found in the document when available
+   - Clearly indicate when you're supplementing with information from outside the document
+   - Use markdown formatting for better readability
+
+DOCUMENT CONTEXT:
+${results.map((r) => r.pageContent).join('\n\n')}
+
+PREVIOUS CONVERSATION:
+${formattedMessages.map(m => `${m.role.toUpperCase()}: ${m.parts[0].text}`).join('\n')}
+
+QUESTION: ${message}
+
+Remember: You must prioritize the document context in your response. Only use additional knowledge when necessary to provide a complete and accurate answer.`;
+
+        // Streaming implementation
         const response = await chat.sendMessageStream(contextPrompt);
         const stream = new ReadableStream({
             async start(controller) {
