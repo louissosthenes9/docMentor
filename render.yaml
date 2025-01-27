@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: docmentor
+    env: node
+    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: KINDE_CLIENT_ID
+        sync: false
+      - key: KINDE_CLIENT_SECRET
+        sync: false
+      - key: KINDE_ISSUER_URL
+        sync: false
+      - key: KINDE_SITE_URL
+        sync: false
+      - key: KINDE_POST_LOGOUT_REDIRECT_URL
+        sync: false
+      - key: KINDE_POST_LOGIN_REDIRECT_URL
+        sync: false
+      - key: NODE_ENV
+        value: production
