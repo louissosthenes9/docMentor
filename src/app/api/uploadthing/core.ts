@@ -21,7 +21,7 @@ export const ourFileRouter = {
       return { userId: user.id };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log("this is the incoming file object", file);
+      console.log("Processing file:", file.name);
 
       const createdFile = await db.file.create({
         data: {
@@ -34,38 +34,61 @@ export const ourFileRouter = {
       });
 
       if (!createdFile) {
-        console.log("error in creating an object in the database in core.tsc");
+        throw new Error("Failed to create file record in database");
       }
 
       try {
-        const response = await fetch(file.url,{timeout:10000});
+        // Fetch PDF with timeout
+        const response = await fetch(file.url, {
+          timeout: 10000,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch PDF: ${response.statusText}`);
+        }
 
         const buffer = await response.arrayBuffer();
+        const blob = new Blob([buffer], { 
+          type: response.headers.get("content-type") || "application/pdf" 
+        });
 
-        const contentType = response.headers.get("content-type") || "application/octet-stream";
-
-        const blob = new Blob([buffer], { type: contentType });
-
+        // Load and process PDF
         const loader = new PDFLoader(blob);
-
         const pageLevelDocs = await loader.load();
 
-        const pagesAmt = pageLevelDocs.length;
+        if (pageLevelDocs.length === 0) {
+          throw new Error("No pages found in PDF");
+        }
 
-        //vectorization
+        console.log(`Processing ${pageLevelDocs.length} pages`);
 
+        // Initialize embeddings with explicit error handling
+        const embeddings = new GoogleGenerativeAIEmbeddings({
+          apiKey: process.env.GEMINI_API_KEY!,
+          modelName: "embedding-001",
+        });
+
+        // Verify embeddings work by testing with a sample
+        const testEmbed = await embeddings.embedQuery("test");
+        if (!testEmbed || testEmbed.length === 0) {
+          throw new Error("Embedding generation failed");
+        }
+
+        // Initialize Pinecone index
         const pineconeIndex = pc.Index("docmentor");
 
-        const embeddings = new GoogleGenerativeAIEmbeddings({
-          apiKey: process.env.GEMINI_API_KEY!, // Use Gemini API key
-          modelName: "embedding-001", // Gemini embedding model
-        });
+        // Process documents in smaller batches to avoid timeout
+        const batchSize = 20;
+        for (let i = 0; i < pageLevelDocs.length; i += batchSize) {
+          const batch = pageLevelDocs.slice(i, i + batchSize);
+          await PineconeStore.fromDocuments(batch, embeddings, {
+            pineconeIndex,
+            namespace: createdFile.id,
+          });
+          console.log(`Processed batch ${i / batchSize + 1}`);
+        }
 
-        await PineconeStore.fromDocuments(pageLevelDocs, embeddings, {
-          pineconeIndex,
-          namespace: createdFile.id,
-        });
-
+        // Update status to success
         await db.file.update({
           data: {
             uploadStatus: "SUCCESS",
@@ -74,12 +97,12 @@ export const ourFileRouter = {
             id: createdFile.id,
           },
         });
-      } catch (error) {
-        console.log(
-          "error in updating status to successfull in core.ts:",
-          error
-        );
 
+        console.log("Successfully processed file:", file.name);
+      } catch (error) {
+        console.error("Error processing file:", error);
+
+        // Update status to failed
         await db.file.update({
           data: {
             uploadStatus: "FAILED",
@@ -88,6 +111,8 @@ export const ourFileRouter = {
             id: createdFile.id,
           },
         });
+
+        throw error;
       }
 
       return {};
