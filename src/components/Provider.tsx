@@ -1,5 +1,5 @@
 "use client"
-import React, { Children, PropsWithChildren, useState } from 'react'
+import React, { PropsWithChildren, useState } from 'react'
 import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
 import { trpc } from '@/app/_trpc/client';
 import { httpBatchLink } from '@trpc/client';
@@ -9,7 +9,7 @@ export default function Provider({children} :PropsWithChildren) {
     const [trpcClient] = useState(()=> trpc.createClient({
         links:[
             httpBatchLink({
-                url:'http://localhost:3000/api/trpc',
+                url:'https://docmentor.onrender.com/api/trpc',
             })
         ]
     }))
