@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import {RegisterLink} from "@kinde-oss/kinde-auth-nextjs/server";
 
 export default function Home() {
   return (
@@ -23,16 +24,15 @@ export default function Home() {
           Doc is your readily available mentor for any of your pdf documents.
           Simply upload your file and tell us what you wanna know about
         </p>
-        <Link
+        <RegisterLink
           className={buttonVariants({
             size: "lg",
             className: "mt-5",
           })}
-          href="/signin"
-          target="_blank"
+
         >
           Get started <ArrowRight className="ml-2 h-5 w-5" />
-        </Link>
+        </RegisterLink>
       </MaxWidthWrapper>
 
       {/*** value proposition */}
