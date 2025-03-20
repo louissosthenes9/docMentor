@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
             parts: [{ text: msg.text }]
         }));
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         const chat = model.startChat({
             history: formattedMessages,
             generationConfig: { temperature: 0.3 }, // Slightly increased for more natural responses
