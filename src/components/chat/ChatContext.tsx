@@ -37,11 +37,23 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
 
   const { mutate: sendMessage, isLoading: isMutationLoading } = useMutation({
     mutationFn: async ({ message }: { message: string }) => {
-      const response = await axios.post("/api/message", {
-        fileId,
-        message,
-      });
-      return response.data;
+      try {
+        // Send message to API
+        const response = await axios.post("/api/message", {
+          fileId,
+          message,
+        }, {
+          // Add timeout to handle potential streaming delays
+          timeout: 60000
+        });
+        
+        // Return the response data if everything succeeds
+        return response.data;
+      } catch (error) {
+        console.error("Error sending message:", error);
+        // Re-throw to trigger onError callback
+        throw error;
+      }
     },
     onMutate: async ({ message }) => {
       setIsLoading(true);
@@ -57,6 +69,7 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
       const tempId = `temp-${Date.now()}`;
       setLoadingMessageId(tempId);
 
+      // Optimistically update UI with user message
       utils.getFileMessages.setInfiniteData(
         { fileId, limit: INFINITE_QUERY_LIMIT },
         (old) => {
@@ -83,35 +96,70 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
         }
       );
 
+      // Create a placeholder for the AI response
+      const aiTempId = `ai-temp-${Date.now()}`;
+      
+      // After adding user message, add a placeholder for AI response
+      setTimeout(() => {
+        utils.getFileMessages.setInfiniteData(
+          { fileId, limit: INFINITE_QUERY_LIMIT },
+          (old) => {
+            if (!old) return { pages: [], pageParams: [] };
+  
+            const newPages = old.pages.map((page, index) =>
+              index === 0
+                ? {
+                    ...page,
+                    messages: [
+                      {
+                        id: aiTempId,
+                        text: "...",
+                        isUserMessage: false,
+                        createdAt: new Date().toISOString(),
+                      },
+                      ...page.messages,
+                    ],
+                  }
+                : page
+            );
+  
+            return { ...old, pages: newPages };
+          }
+        );
+      }, 500);
+
       setMessage("");
-      return { previousMessages, tempId };
+      return { previousMessages, tempId, aiTempId };
     },
     onSuccess: async (response, _, context) => {
+      // Update user message with confirmed ID from server
       utils.getFileMessages.setInfiniteData(
         { fileId, limit: INFINITE_QUERY_LIMIT },
         (old) => {
           if (!old) return { pages: [], pageParams: [] };
 
-          const newPages = old.pages.map((page, index) =>
-            index === 0
-              ? {
-                  ...page,
-                // @ts-ignore
-                  messages: page.messages.map((msg) =>
-                    // @ts-ignore
-                    msg.id === context?.tempId
-                    // @ts-ignore
-                      ? { ...msg, id: response.id, createdAt: response.createdAt }
-                      // @ts-ignore
-                      : msg
-                  ),
-                }
-              : page
-          );
+          const newPages = old.pages.map((page) => ({
+            ...page,
+            // @ts-ignore - Fix for TypeScript issues
+            messages: page.messages.map((msg) =>
+              // @ts-ignore
+              msg.id === context?.tempId
+                ? { 
+                    ...msg, 
+                    // If response has an ID, use it, otherwise keep temp ID
+                    id: response?.id || msg.id,
+                    createdAt: response?.createdAt || msg.createdAt
+                  }
+                : msg
+            ),
+          }));
 
           return { ...old, pages: newPages };
         }
       );
+
+      // We don't need to manually add AI response here since it's handled by
+      // the UI via the TRPC invalidation below, which will fetch fresh messages
 
       setLoadingMessageId(null);
       setIsLoading(false);
@@ -130,11 +178,13 @@ export const ChatContextProvider = ({ fileId, children }: Props) => {
 
       toast({
         title: "Error",
-        description: "Failed to send the message.",
+        description: "Failed to send the message. Please try again.",
         variant: "destructive",
       });
     },
     onSettled: () => {
+      // Invalidate query to fetch fresh messages from the server
+      // This will include both the user message and AI response
       utils.getFileMessages.invalidate({ fileId });
     },
   });

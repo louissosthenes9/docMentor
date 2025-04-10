@@ -3,10 +3,10 @@ import { ExtendedMessage } from "@/types/message";
 import { Icons } from "../Icons";
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import  vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { Loader2Icon } from "lucide-react";
 import { ChatContext } from "./ChatContext";
@@ -25,6 +25,19 @@ type CodeProps = {
 export default function Message({ message, isNextMessageSamePerson }: MessageProps) {
     const { loadingMessageId } = useContext(ChatContext);
     const isLoading = message.id === loadingMessageId;
+    
+    // Handle AI messages that are placeholders (when text is "...")
+    const isAIPlaceholder = !message.isUserMessage && message.text === "...";
+    
+    // Track message content for animations if needed
+    const [messageContent, setMessageContent] = useState<string>(message.text as string);
+    
+    // Update message content when the message changes
+    useEffect(() => {
+        if (message.text !== messageContent) {
+            setMessageContent(message.text as string);
+        }
+    }, [message.text]);
 
     const formatMessageTime = (date: Date | string | number) => {
         try {
@@ -48,6 +61,9 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
     const toggleTimeFormat = () => {
         setShowRelativeTime(prev => !prev);
     };
+
+    // Determine message display state
+    const isMessageDisplayLoading = isLoading || isAIPlaceholder;
 
     return (
         <div
@@ -78,10 +94,18 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                     "rounded-br-none": !isNextMessageSamePerson && message.isUserMessage,
                     "rounded-bl-none": !isNextMessageSamePerson && !message.isUserMessage
                 })}>
-                    {isLoading ? (
+                    {isMessageDisplayLoading ? (
                         <div className="flex items-center space-x-2">
-                            <span className="text-zinc-50">Sending</span>
-                            <Loader2Icon className="animate-spin h-4 w-4 text-zinc-50" />
+                            <span className={cn({
+                                "text-zinc-50": message.isUserMessage,
+                                "text-zinc-800": !message.isUserMessage
+                            })}>
+                                {message.isUserMessage ? "Sending" : "Thinking..."}
+                            </span>
+                            <Loader2Icon className={cn("animate-spin h-4 w-4", {
+                                "text-zinc-50": message.isUserMessage,
+                                "text-zinc-800": !message.isUserMessage
+                            })} />
                         </div>
                     ) : (
                         <ReactMarkdown
@@ -156,11 +180,11 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
                                 }
                             }}
                         >
-                            {typeof message.text === 'string' ? message.text : String(message.text)}
+                            {typeof messageContent === 'string' ? messageContent : String(messageContent)}
                         </ReactMarkdown>
                     )}
 
-                    {timeDisplay && !isLoading && (
+                    {timeDisplay && !isMessageDisplayLoading && (
                         <div 
                             className={cn("text-xs select-none mt-2 w-full text-right cursor-pointer", {
                                 "text-zinc-500": !message.isUserMessage,
@@ -177,4 +201,3 @@ export default function Message({ message, isNextMessageSamePerson }: MessagePro
         </div>
     );
 }
-
