@@ -6,8 +6,6 @@ import NavBar from '@/components/NavBar'
 import Provider from '@/components/Provider'
 import { Toaster } from '@/components/ui/toaster'
 import "simplebar-react/dist/simplebar.min.css"
-import {DefaultSeo} from "next-seo"
-import SEO from "./seo.config.js"
 export const metadata: Metadata = {
   title: 'Doc🧐 mentor',
   description: 'Interact with you document',
@@ -32,7 +30,6 @@ export default function RootLayout({
         <Provider>
           <Toaster />
            <NavBar/>
-           <DefaultSeo {...SEO} />  
           {children}
         </Provider>
            
