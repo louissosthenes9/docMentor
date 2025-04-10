@@ -121,42 +121,78 @@ QUESTION: ${message}
 
 Remember: You must prioritize the document context in your response. Only use additional knowledge when necessary to provide a complete and accurate answer.`;
 
-        // Streaming implementation
-        const response = await chat.sendMessageStream(contextPrompt);
-        const stream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
-                let fullResponse = '';
-                
-                try {
-                    for await (const chunk of response.stream) {
-                        const chunkText = chunk.text();
-                        fullResponse += chunkText;
-                        controller.enqueue(encoder.encode(chunkText));
-                    }
+        // Improved streaming implementation with better error handling
+        try {
+            // First attempt a non-streaming call to verify API is working correctly
+            const responseCheck = await chat.sendMessage(contextPrompt);
+            const fullResponseText = responseCheck.response.text();
+            
+            // Now proceed with streaming for the actual user response
+            const response = await chat.sendMessageStream(contextPrompt);
+            
+            // Create a variable to collect the full response
+            let collectedResponse = '';
+            
+            const stream = new ReadableStream({
+                async start(controller) {
+                    const encoder = new TextEncoder();
                     
-                    // Store AI response after stream is complete
-                    if (fullResponse.trim()) {
-                        await db.message.create({
-                            data: {
-                                text: fullResponse,
-                                isUserMessage: false,
-                                fileId,
-                                userId: user.id
-                            }
-                        });
+                    try {
+                        for await (const chunk of response.stream) {
+                            const chunkText = chunk.text();
+                            collectedResponse += chunkText;
+                            controller.enqueue(encoder.encode(chunkText));
+                        }
+                        
+                        controller.close();
+                    } catch (error) {
+                        console.error('Streaming error:', error);
+                        controller.error(error);
                     }
-                    
-                    controller.close();
-                } catch (error) {
-                    controller.error(error);
                 }
+            });
+            
+            // Save the AI response to the database separately from the stream
+            // This ensures we don't miss saving due to stream errors
+            if (fullResponseText) {
+                await db.message.create({
+                    data: {
+                        text: fullResponseText,
+                        isUserMessage: false,
+                        fileId,
+                        userId: user.id
+                    }
+                });
             }
-        });
-
-        return new StreamingTextResponse(stream);
+            
+            return new StreamingTextResponse(stream);
+        } catch (error) {
+            console.error('Gemini API Error:', error);
+            
+            // Fallback to non-streaming response if streaming fails
+            try {
+                const fallbackResponse = await chat.sendMessage(contextPrompt);
+                const fallbackText = fallbackResponse.response.text();
+                
+                // Save to database
+                await db.message.create({
+                    data: {
+                        text: fallbackText,
+                        isUserMessage: false,
+                        fileId,
+                        userId: user.id
+                    }
+                });
+                
+                // Return as normal response
+                return new Response(fallbackText);
+            } catch (secondError) {
+                console.error('Fallback error:', secondError);
+                return new Response('Failed to generate response. Please try again.', { status: 500 });
+            }
+        }
     } catch (error) {
         console.error('API Error:', error);
         return new Response('Internal Server Error', { status: 500 });
     }
-}
+} 
